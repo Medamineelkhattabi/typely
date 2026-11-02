@@ -1,0 +1,14 @@
+{
+  "name": "@typely/correction-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@typely/provider-adapters": "0.1.0",
+    "@typely/schemas": "0.1.0",
+    "zod": "4.6.7"
+  }
+}
