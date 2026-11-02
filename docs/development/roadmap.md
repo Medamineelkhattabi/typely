@@ -48,11 +48,14 @@ Prerequisite: Rust toolchain + MSVC Build Tools (see setup.md). Move repo out of
 - [ ] Localise shared local-rule messages by `rule_id` (currently English; ADR-014)
 - [ ] Desktop tests: shortcut, capture in Notepad / Word / Outlook / Teams / browser, clipboard restore, elevated-app failure path
 - [ ] Local AI: detect an installed Ollama (never bundle it), show its status, recommend `OLLAMA_IGPU_ENABLE=1` and `OLLAMA_NO_CLOUD=1`
-- [ ] Gate local small models to `fix` by default; other operations and Arabic AI correction labelled experimental
+- [ ] Gate 1B-class local models to `fix`; other operations need the quality model or are labelled experimental
 - [ ] Show guard warnings (`language_changed`, `excessive_changes`, `protected_token_lost`) before _Replace_
 - [ ] Tune `excessive_changes` for short error-dense text and Arabic (false positives in the benchmark)
 - [ ] Decide on hint placement for the compact prompt (qwen3.5 echoed the hint block)
-- [ ] Re-run the Ollama benchmark on AC power; validate a 4B-class model on the iGPU (needs a download approval)
+- [x] Validate a 4B-class model on the iGPU: gemma3:4b, no damaging failures, ~17 s, 4.5 GB ([report](ollama-benchmark.md#gemma34b-validation-2026-11-03))
+- [ ] Two-tier local setup in the UI: gemma3:1b for `fix`, gemma3:4b for the other operations; 1B-only on ≤ 16 GB machines
+- [ ] Language-aware routing (send Arabic corrections to the quality model)
+- [ ] Measure dropping model-written explanations for local `fix` (estimated 4B: ~11–14 s instead of ~17 s)
 - [ ] **MVP usability gate** before Phase 3
 
 ## Phase 3 — Browser extension

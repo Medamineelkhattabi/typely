@@ -121,31 +121,96 @@ Open:
 10. qwen3.5 copied the "Automated checks flagged" hint block into its answer. Consider omitting hints, or moving them into the system message, in the compact profile.
 11. By default Ollama has cloud features on (`Ollama cloud disabled: false`) and schedules a "model recommendations" fetch from ollama.com. Launch with `OLLAMA_NO_CLOUD=1`. The recommendations fetch has no documented switch.
 12. The Ollama Windows zip is 1.58 GB, mostly CUDA libraries that are useless on Iris Xe. Typely should detect an existing Ollama, not bundle it.
-13. The first-ever iGPU load took 13.9 s (one-time shader compilation).
-14. Measured on battery with a stray background process using one core. Re-measure on AC power with that process stopped.
+13. The first-ever iGPU load is slow (gemma3:1b 13.9 s, gemma3:4b 21 s; one-time shader compilation). Phase 2 should explain it on first use.
+14. The first run was on battery. The gemma3:4b run was on AC power, which made gemma3:1b ~20% faster (4.8 s vs 6.1 s). The stray process using one core was present in both runs.
+
+## gemma3:4b validation (2026-11-03)
+
+**Conditions.**
+- **Hardware and power:** the same laptop, now **on AC power** (battery charging from 8%), with the stray process still using ~1 core.
+- **Server:** iGPU on, `OLLAMA_NO_CLOUD=1` (log confirms `Ollama cloud disabled: true`).
+- **Models:** `gemma3:4b` (Q4_K_M, 3.35 GB download), with gemma3:1b re-run in the same session for a fair comparison.
+- **Method:** one discarded warm-up request per model (first-ever 4B load: 21 s), then the same 9 cases. Temperature was 0.2, the new default.
+
+### Performance (iGPU, medians over 9 cases)
+
+|                                  | gemma3:1b           | gemma3:4b          |
+| -------------------------------- | ------------------- | ------------------ |
+| Time per correction              | **4.8 s** (4.5–5.8) | 17.1 s (12.6–26.9) |
+| Model load                       | 2.2 s               | 4.6 s              |
+| Prompt processing                | 451 tok/s           | 109 tok/s          |
+| Generation                       | 25.9 tok/s          | 8.4 tok/s          |
+| Output tokens                    | 52                  | 90                 |
+| Peak RAM (working set / private) | 1.38 / 1.48 GB      | **4.48 / 4.77 GB** |
+| CPU, average / peak              | 5% / 10%            | 4% / 11%           |
+| Unload after completion          | ≤ 0.3 s             | ≤ 0.8 s            |
+| Idle server between requests     | 41–44 MB, 0% CPU    | same               |
+
+Interference could not be compared reliably in this run. The idle baseline of the
+foreground task drifted from 18.6 ms before the run to 34 ms after it, probably from
+battery charging and heat, so the order of the runs biases the result. The measured
+range was a 1.6–2.6× slowdown during inference, in line with the earlier run.
+
+Generation dominates the 4B's time. Cases asked for no explanations (translation,
+professional) produced 45–65 tokens and finished in 12.6–14.8 s. Corrections with up to 3
+explanations produced 79–169 tokens and took 15.6–26.9 s. Dropping model-written
+explanations for `fix` (the UI already highlights changes from its own diff) would bring
+the 4B to roughly 11–14 s. This is an estimate from those cases, not yet measured.
+
+### Quality
+
+| Case                                | gemma3:1b                  | gemma3:4b                                                                           |
+| ----------------------------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| fr: agreement                       | ✅ perfect                 | ✅ perfect                                                                          |
+| fr: tech terms                      | ❌ unchanged               | ⚠️ fixed "passé", missed "sa→ça"; technical terms kept                              |
+| fr: professional                    | ⚠️ barely changed          | ⚠️ well punctuated and polite ("s'il te plaît"), but keeps the informal "Salut… tu" |
+| en: homophones                      | ✅                         | ✅                                                                                  |
+| en: agreement + URL                 | ✅                         | ⚠️ fixed "their", missed "have→has pushed"                                          |
+| en→fr translation                   | ⚠️ dropped "meeting"       | ✅ complete and natural                                                             |
+| ar: hamza/taa marbuta               | ✅ local-rule fixes only   | ✅ **all fixed, including جميلًا** (the only model to fix the predicate case)         |
+| ar: punctuation + إرسال             | ⚠️ local-rule fixes only   | ✅ all fixed                                                                        |
+| ar: professional (dialect → formal) | ❌ **answered in English** | ✅ correct formal Arabic, same meaning                                              |
+
+**gemma3:4b is the first model with no damaging failure**: no language switch, no
+deleted content, no echoed prompt. It is clearly better at Arabic and translation. It
+still misses some errors and does not shift register on its own (a "professional"
+request keeps "tu"), so the guards and the user's review before _Replace_ stay necessary.
+The `excessive_changes` false positive appeared again on two correct outputs (English
+homophones, Arabic hamza).
+
+### Trade-off
+
+- **gemma3:4b:** about 3.5× slower and 3× the RAM of gemma3:1b, held only while it runs. 4.5 GB was comfortable with ~10.6 GB free on this 32 GB machine; on a 16 GB machine with a browser and Teams open it would not be.
+- **gemma3:1b:** fast enough to feel interactive. Too unreliable outside English/French fixes.
 
 ## Recommended configuration
 
+Use both models, each where it is good, through the engine's existing per-operation
+routing. No architecture change is needed:
+
 ```json
 {
-  "id": "local",
-  "kind": "ollama",
-  "label": "Ollama (local)",
-  "model": "gemma3:1b",
-  "base_url": "http://127.0.0.1:11434",
-  "keep_alive_seconds": 0,
-  "thinking": false,
-  "temperature": 0.2,
-  "prompt_profile": "compact",
-  "timeout_ms": 60000
+  "providers": [
+    { "id": "local-fast", "kind": "ollama", "label": "Ollama · fast", "model": "gemma3:1b" },
+    {
+      "id": "local-quality",
+      "kind": "ollama",
+      "label": "Ollama · quality",
+      "model": "gemma3:4b",
+      "timeout_ms": 90000
+    }
+  ],
+  "provider_order": ["local-quality", "local-fast"],
+  "operation_providers": { "fix": "local-fast" }
 }
 ```
 
-The last five fields are now the adapter's defaults; they are listed only to make the
-policy explicit. Server environment: `OLLAMA_HOST=127.0.0.1:11434`, `OLLAMA_IGPU_ENABLE=1`,
-`OLLAMA_NO_CLOUD=1`.
-
-- **Default local model:** `gemma3:1b` on the iGPU: ~6 s per correction, ~1.4 GB RAM only while correcting, ~5% CPU, foreground slowdown ~1.7× during those seconds.
-- **Scope with this model:** `fix` in hybrid mode for English and French. Mark the other operations and Arabic AI correction "experimental" in the UI, with the guards' warnings shown before _Replace_.
-- **Not recommended:** qwen3.5:2b (slower, heavier, fails dangerously); any reasoning mode; full prompt on local models.
-- **Next validation:** a 4 B-class model (`gemma3:4b`, 3.4 GB, or `qwen3.5:4b`, 3.3 GB) on the iGPU, to find out whether rewriting and Arabic become reliable at an acceptable latency. It needs your approval for the download.
+- `fix` uses gemma3:1b: ~5 s, 1.4 GB.
+- Rewrite, professional, concise, friendly, clarity, translate and prompt use gemma3:4b: ~13–17 s, 4.5 GB.
+- Each falls back to the other model if one fails.
+- The adapter defaults apply to both: unload after every request, no reasoning, temperature 0.2, compact prompt.
+- Server environment: `OLLAMA_HOST=127.0.0.1:11434`, `OLLAMA_IGPU_ENABLE=1`, `OLLAMA_NO_CLOUD=1`.
+- **Arabic:** route Arabic corrections to gemma3:4b as well, because the 1B adds nothing beyond the local rules for Arabic. This needs language-aware routing, which the engine does not have yet (roadmap). Until then, Arabic-first users should set `"fix": "local-quality"`.
+- **Low-RAM machines (≤ 16 GB):** offer gemma3:1b only, and mark the other operations experimental.
+- **Not recommended:** qwen3.5:2b; any reasoning mode; the full prompt on local models.
+- **UX implications for Phase 2:** show progress and a Cancel button for the 4B; show the guards' warnings before _Replace_; never preload.
