@@ -45,7 +45,14 @@ import {
 } from "./languages/registry.ts";
 import { getOperation } from "./operations.ts";
 import { parseLlmOutput } from "./parse.ts";
-import { buildPrompt, buildRepairPrompt, estimateOutputTokens } from "./prompts.ts";
+import {
+  buildPrompt,
+  buildRepairPrompt,
+  estimateOutputTokens,
+  type PromptInput,
+  type PromptProfile,
+  stripEchoedDelimiters,
+} from "./prompts.ts";
 import { fixLocally, mergeIssues, runLocalRules } from "./rules/index.ts";
 import { diffWords } from "./text/diff.ts";
 
@@ -199,34 +206,31 @@ export class CorrectionEngine {
         : { issues: [], layers: [], warnings: [] };
     warnings.push(...findings.warnings);
 
-    const prompt = buildPrompt(
-      {
-        operation,
-        text: request.text,
-        language: resolved.language,
-        ...(request.target_language === undefined
-          ? {}
-          : { targetLanguage: request.target_language }),
-        ...(request.context === undefined
-          ? {}
-          : {
-              context: {
-                kind: request.context.kind,
-                ...(request.context.app === undefined ? {} : { app: request.context.app }),
-                ...(request.context.target_ai === undefined
-                  ? {}
-                  : { targetAi: request.context.target_ai }),
-              },
-            }),
-        hints: findings.issues,
-      },
-      this.registry,
-    );
-    const completion: CompletionRequest = {
-      ...prompt,
+    const promptInput: PromptInput = {
+      operation,
+      text: request.text,
+      language: resolved.language,
+      ...(request.target_language === undefined ? {} : { targetLanguage: request.target_language }),
+      ...(request.context === undefined
+        ? {}
+        : {
+            context: {
+              kind: request.context.kind,
+              ...(request.context.app === undefined ? {} : { app: request.context.app }),
+              ...(request.context.target_ai === undefined
+                ? {}
+                : { targetAi: request.context.target_ai }),
+            },
+          }),
+      hints: findings.issues,
+    };
+    // The prompt depends on the provider (compact for small local models), so it is built
+    // per attempt rather than once for the whole chain.
+    const completionFor = (adapter: ProviderAdapter): CompletionRequest => ({
+      ...buildPrompt({ ...promptInput, profile: promptProfile(adapter) }, this.registry),
       jsonSchema: { name: "typely_correction", schema: LLM_OUTPUT_JSON_SCHEMA },
       suggestedMaxOutputTokens: estimateOutputTokens(request.text, operation),
-    };
+    });
 
     const chain = new ProviderChain(adapters, {
       maxRetries: this.settings.limits.max_retries,
@@ -235,7 +239,7 @@ export class CorrectionEngine {
     let chainResult: ChainResult<AiOutcome>;
     try {
       chainResult = await chain.run(
-        (adapter, signal) => this.#completeAndParse(adapter, completion, signal),
+        (adapter, signal) => this.#completeAndParse(adapter, completionFor(adapter), signal),
         options.signal,
       );
     } catch (error) {
@@ -243,7 +247,7 @@ export class CorrectionEngine {
     }
     const { value: outcome, adapter, attempts } = chainResult;
 
-    let corrected = outcome.output.corrected_text;
+    let corrected = stripEchoedDelimiters(outcome.output.corrected_text, request.text);
     const explanation: ExplanationItem[] = outcome.output.explanation
       .filter((e) => e.original !== e.corrected)
       .map((e) => ({ ...e, source: "ai" as const }));
@@ -520,6 +524,10 @@ export function endpointsFromSettings(
     });
   }
   return endpoints;
+}
+
+function promptProfile(adapter: ProviderAdapter): PromptProfile {
+  return adapter.config.prompt_profile ?? (adapter.isLocal ? "compact" : "full");
 }
 
 function toExplanation({

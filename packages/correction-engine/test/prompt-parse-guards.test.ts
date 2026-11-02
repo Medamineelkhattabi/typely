@@ -10,6 +10,7 @@ import {
   listOperations,
   parseLlmOutput,
   runGuards,
+  stripEchoedDelimiters,
 } from "../src/index.ts";
 
 const registry = createDefaultRegistry();
@@ -203,5 +204,35 @@ describe("runGuards", () => {
         "Je suis allée au marché hier avec mes amis.",
       ),
     ).toEqual([]);
+  });
+});
+
+describe("compact prompt profile", () => {
+  const input = { operation: getOperation("fix"), text: "Je suis allé", language: "fr" } as const;
+
+  it("is much shorter than the full prompt and omits the schema dump", () => {
+    const full = buildPrompt(input, registry);
+    const compact = buildPrompt({ ...input, profile: "compact" }, registry);
+    expect(compact.system.length).toBeLessThan(full.system.length / 2.5);
+    expect(compact.system).not.toContain('"additionalProperties"');
+    expect(compact.system).toContain("at most 3 key changes");
+    expect(compact.user).toBe(full.user);
+  });
+
+  it("asks for no explanations on rewrite-style operations and names the target language", () => {
+    const compact = buildPrompt(
+      { ...input, operation: getOperation("translate"), targetLanguage: "ar", profile: "compact" },
+      registry,
+    );
+    expect(compact.system).toContain("explanation: [] (empty list).");
+    expect(compact.system).toContain("Target language: Arabic.");
+  });
+});
+
+describe("stripEchoedDelimiters", () => {
+  it("unwraps an answer the model wrapped in our tags, and only that", () => {
+    expect(stripEchoedDelimiters("<text>\nأنا ذهبت\n</text>", "انا ذهبت")).toBe("أنا ذهبت");
+    expect(stripEchoedDelimiters("Use <text> tags", "x")).toBe("Use <text> tags");
+    expect(stripEchoedDelimiters("<text-1>ok</text-1>", "has <text> inside")).toBe("ok");
   });
 });

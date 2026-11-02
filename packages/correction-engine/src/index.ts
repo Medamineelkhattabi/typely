@@ -26,6 +26,9 @@ export {
   buildRepairPrompt,
   chooseDelimiter,
   estimateOutputTokens,
+  type PromptInput,
+  type PromptProfile,
+  stripEchoedDelimiters,
 } from "./prompts.ts";
 export {
   applyFixes,

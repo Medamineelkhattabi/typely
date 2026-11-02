@@ -14,7 +14,7 @@ export interface ProcessSample {
 }
 
 /**
- * Samples Ollama processes (server + model runner) from a single long-lived PowerShell
+ * Samples Ollama processes (server + `llama-server` model runner) from a single long-lived PowerShell
  * loop, so sampling does not spawn a process per tick and does not skew the CPU numbers
  * of the processes being measured.
  */
@@ -22,11 +22,13 @@ export class ProcessSampler {
   readonly samples: ProcessSample[] = [];
   #child: ChildProcess | undefined;
 
-  start(namePattern = "ollama*", intervalMs = 200): Promise<void> {
+  /** Ollama runs inference in a separate `llama-server.exe` child of `ollama.exe`. */
+  start(names: readonly string[] = ["ollama", "llama-server"], intervalMs = 200): Promise<void> {
+    const nameList = names.map((n) => `'${n}'`).join(",");
     const script = `
       $sw = [Diagnostics.Stopwatch]::StartNew()
       while ($true) {
-        $p = @(Get-Process -Name '${namePattern}' -ErrorAction SilentlyContinue)
+        $p = @(Get-Process -Name ${nameList} -ErrorAction SilentlyContinue)
         $ws = ($p | Measure-Object WorkingSet64 -Sum).Sum
         $pb = ($p | Measure-Object PrivateMemorySize64 -Sum).Sum
         $cpu = ($p | ForEach-Object { $_.TotalProcessorTime.TotalMilliseconds } | Measure-Object -Sum).Sum

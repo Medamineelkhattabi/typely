@@ -52,6 +52,9 @@ export class OllamaAdapter implements ProviderAdapter {
         ],
         stream: false,
         keep_alive: keepAliveSeconds === 0 ? 0 : `${keepAliveSeconds}s`,
+        // Accepted (and ignored) by non-reasoning models; without it, reasoning models such
+        // as qwen3.5 emit thousands of hidden tokens per correction.
+        think: this.config.thinking ?? false,
         ...optional("format", format),
         ...optional("options", Object.keys(options).length > 0 ? options : undefined),
       },

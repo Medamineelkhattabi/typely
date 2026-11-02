@@ -189,6 +189,48 @@ describe("CorrectionEngine — AI modes", () => {
     expect(result.explanation.some((x) => x.source === "local" && x.corrected === " ")).toBe(true);
   });
 
+  it("uses the compact prompt for local providers and the full prompt for cloud ones", async () => {
+    const reply = llm({ corrected_text: "Hello there.", detected_language: "en" });
+    const { engine: e, calls } = engine(
+      {
+        providers: [{ ...cloudProvider, enabled: true }, localProvider],
+        privacy: { cloud_processing_allowed: true },
+        provider_order: ["local", "anthropic"],
+      },
+      {
+        local: () => ({ status: 500, headers: {}, body: "boom" }),
+        anthropic: () => anthropicReply(JSON.stringify(reply)),
+      },
+    );
+    await e.run({ operation: "fix", text: "<text>Hello there</text>" });
+    const localBody = calls[0]?.request.body as
+      | { messages: Array<{ content: string }> }
+      | undefined;
+    const cloudBody = calls.at(-1)?.request.body as { system: string } | undefined;
+    const localSystem = localBody?.messages[0]?.content ?? "";
+    const cloudSystem = cloudBody?.system ?? "";
+    expect(localSystem.length).toBeGreaterThan(0);
+    expect(localSystem.length).toBeLessThan(cloudSystem.length / 2);
+    expect(cloudSystem).toContain('"additionalProperties"');
+  });
+
+  it("strips delimiter tags echoed by the model", async () => {
+    const { engine: e } = engine(
+      { providers: [localProvider] },
+      {
+        local: () =>
+          ollamaReply(
+            JSON.stringify(
+              llm({ corrected_text: "<text>\nHello there.\n</text>", detected_language: "en" }),
+            ),
+          ),
+      },
+    );
+    expect((await e.run({ operation: "fix", text: "Hello there" })).corrected_text).toBe(
+      "Hello there.",
+    );
+  });
+
   it("requires explicit consent before using a cloud provider", async () => {
     const { engine: e, calls } = engine(
       { providers: [cloudProvider] },

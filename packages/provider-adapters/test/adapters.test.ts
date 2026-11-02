@@ -306,6 +306,12 @@ describe("Ollama adapter", () => {
     });
   });
 
+  it("disables reasoning by default and allows opting in", () => {
+    expect(adapter.buildCompletion(request).body).toMatchObject({ think: false });
+    const thinker = createAdapter(config({ id: "ol", kind: "ollama", model: "x", thinking: true }));
+    expect(thinker.buildCompletion(request).body).toMatchObject({ think: true });
+  });
+
   it("unloads the model right after each request unless configured otherwise", () => {
     expect(adapter.buildCompletion(request).body).toMatchObject({ keep_alive: 0 });
     const warm = createAdapter(

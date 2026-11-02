@@ -38,6 +38,13 @@ export const ProviderConfigSchema = z.strictObject({
    * unload immediately — so Typely never holds gigabytes of RAM while idle.
    */
   keep_alive_seconds: z.number().int().min(0).max(86_400).optional(),
+  /**
+   * Let reasoning ("thinking") models think before answering. Off by default: on a laptop
+   * CPU it turned a 2 s correction into a 200 s one (see docs/development/ollama-benchmark.md).
+   */
+  thinking: z.boolean().optional(),
+  /** Prompt size. Defaults to "compact" for local endpoints and "full" for cloud ones. */
+  prompt_profile: z.enum(["full", "compact"]).optional(),
 });
 export type ProviderConfig = z.output<typeof ProviderConfigSchema>;
 export type ProviderConfigInput = z.input<typeof ProviderConfigSchema>;
