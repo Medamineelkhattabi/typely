@@ -8,7 +8,7 @@ Taken 2026-11-02 on the primary development machine.
 | ------------------------- | ---------------------------------- | ------------------------------------------ |
 | Windows 11 Pro 26200      | ✅                                 | —                                          |
 | Node.js 24.20 / npm 11.19 | ✅                                 | all TypeScript packages                    |
-| Git 2.55                  | ✅ (no global identity configured) | version control                            |
+| Git 2.55                  | ✅ repo-local identity (confirmed) | version control                            |
 | Python 3.12               | ✅                                 | not required (ADR-002)                     |
 | Docker 29.7               | ✅                                 | optional self-hosted LanguageTool          |
 | WebView2 runtime 156      | ✅                                 | Tauri desktop                              |
@@ -17,24 +17,24 @@ Taken 2026-11-02 on the primary development machine.
 | MSVC C++ Build Tools      | ❌ missing                         | Rust on Windows (`x86_64-pc-windows-msvc`) |
 | Ollama                    | ❌ not installed                   | optional local models                      |
 
-### ⚠️ Repository location
+### Repository location
 
-The working copy currently sits inside a **OneDrive-synced folder** with spaces in its
-path. Before Phase 2 move it to a non-synced path such as `C:\dev\typely`:
+Keep the working copy out of cloud-synced folders (OneDrive, Dropbox): `node_modules` and
+Rust's `target/` hold tens of thousands of files, and sync locking breaks `cargo`, `npm` and
+file watchers.
 
-- `node_modules` (~tens of thousands of files) and Rust `target/` (several GB) would be
-  synced to OneDrive continuously.
-- OneDrive file locking intermittently breaks `cargo`, `npm` and file watchers.
+## Toolchain requirements for Phase 2
 
-## Install commands
+All of these are system-wide installs: approve and run them yourself.
 
-Phase 1 (TypeScript core) — already satisfied:
+| Component | Exact requirement | Why | Disk |
+|---|---|---|---|
+| Microsoft C++ Build Tools | **Visual Studio Build Tools 2022** (17.14.x, winget `Microsoft.VisualStudio.2022.BuildTools`), workload **Desktop development with C++** (`Microsoft.VisualStudio.Workload.VCTools`) with its recommended components: MSVC v143 x64/x86 tools and a Windows 11 SDK | Rust's `x86_64-pc-windows-msvc` target links with MSVC; Tauri's own prerequisite. 2022 rather than 2026 (18.x) because it has the widest support across Rust crates (`cc`, `windows-rs`) today | ~6–8 GB |
+| Rust | `rustup` (winget `Rustlang.Rustup`, 1.29.x), **stable** toolchain, default host `x86_64-pc-windows-msvc` | Tauri core, global shortcut, UI Automation, clipboard, keyring | ~1.5 GB, plus 2–4 GB per Tauri `target/` |
+| WebView2 Runtime | Evergreen, already installed (156) | Tauri renders its UI with the system WebView2 | — |
+| VBSCRIPT optional feature | Only when building `.msi` installers (Phase 5) | WiX MSI bundling | — |
 
-```bash
-npm install
-```
-
-Phase 2 prerequisites (run in an elevated PowerShell, one at a time):
+Install commands (elevated PowerShell, one at a time, in this order):
 
 ```bash
 winget install --id Microsoft.VisualStudio.2022.BuildTools --override "--wait --passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
@@ -44,15 +44,28 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools --override "--wait --
 winget install --id Rustlang.Rustup
 ```
 
+Then, in a **new** terminal:
+
 ```bash
 rustup default stable-msvc
 ```
 
-Optional:
-
 ```bash
-winget install --id Ollama.Ollama
+rustup show
 ```
+
+Expected: `stable-x86_64-pc-windows-msvc` listed as the default toolchain, and
+`rustc --version` / `cargo --version` both working.
+
+## Local models (optional)
+
+Ollama is **not** required to develop Typely. The benchmark in
+[ollama-benchmark.md](ollama-benchmark.md) used the portable build (no installer, no
+service, no autostart): `ollama-windows-amd64.zip` v0.40.7 extracted to
+`%USERPROFILE%\typely-bench\ollama`, started on demand with `OLLAMA_MODELS` pointing to
+the same folder.
+
+## Optional LanguageTool server
 
 ```bash
 docker run -d --name languagetool -p 8081:8010 erikvl87/languagetool

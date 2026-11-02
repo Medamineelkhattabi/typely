@@ -133,6 +133,20 @@ describe("DirectTransport", () => {
     });
   });
 
+  it("explains connection errors hidden in nested causes", async () => {
+    const refused = Object.assign(new Error(""), { code: "ECONNREFUSED" });
+    const transport = new DirectTransport({
+      endpoints,
+      getSecret: () => undefined,
+      fetch: (async () => {
+        throw new TypeError("fetch failed", { cause: new AggregateError([refused], "") });
+      }) as typeof fetch,
+    });
+    await expect(transport.send("ol", { method: "GET", path: "/" })).rejects.toThrow(
+      "fetch failed: connection refused — is the server running?",
+    );
+  });
+
   it("maps network failures, timeouts and cancellation", async () => {
     const network = new DirectTransport({
       endpoints,

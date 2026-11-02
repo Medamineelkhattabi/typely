@@ -179,10 +179,25 @@ function parseBody(text: string): unknown {
   }
 }
 
+const NETWORK_HINTS: Readonly<Record<string, string>> = {
+  ECONNREFUSED: "connection refused — is the server running?",
+  ENOTFOUND: "host not found",
+  ECONNRESET: "connection reset by the server",
+  ETIMEDOUT: "connection timed out",
+  CERT_HAS_EXPIRED: "TLS certificate expired",
+};
+
 function describe(error: unknown): string {
-  if (error instanceof Error) {
-    const cause = error.cause instanceof Error ? ` (${error.cause.message})` : "";
-    return `${error.message}${cause}`;
-  }
-  return String(error);
+  if (!(error instanceof Error)) return String(error);
+  // Node's fetch hides the real reason (e.g. ECONNREFUSED) in a nested cause, sometimes an
+  // AggregateError with an empty message.
+  const cause = error.cause;
+  const nested = cause instanceof AggregateError ? cause.errors[0] : cause;
+  const code =
+    typeof nested === "object" && nested !== null && "code" in nested
+      ? String(nested.code)
+      : undefined;
+  if (code !== undefined) return `${error.message}: ${NETWORK_HINTS[code] ?? code}`;
+  const detail = nested instanceof Error && nested.message ? ` (${nested.message})` : "";
+  return `${error.message}${detail}`;
 }

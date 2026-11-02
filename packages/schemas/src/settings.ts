@@ -33,6 +33,11 @@ export const ProviderConfigSchema = z.strictObject({
   max_output_tokens: z.number().int().positive().optional(),
   json_mode: JsonModeSchema.optional(),
   timeout_ms: z.number().int().positive().optional(),
+  /**
+   * Local models (Ollama): seconds the model stays in memory after a request. Defaults to 0 —
+   * unload immediately — so Typely never holds gigabytes of RAM while idle.
+   */
+  keep_alive_seconds: z.number().int().min(0).max(86_400).optional(),
 });
 export type ProviderConfig = z.output<typeof ProviderConfigSchema>;
 export type ProviderConfigInput = z.input<typeof ProviderConfigSchema>;

@@ -306,6 +306,14 @@ describe("Ollama adapter", () => {
     });
   });
 
+  it("unloads the model right after each request unless configured otherwise", () => {
+    expect(adapter.buildCompletion(request).body).toMatchObject({ keep_alive: 0 });
+    const warm = createAdapter(
+      config({ id: "ol", kind: "ollama", model: "x", keep_alive_seconds: 120 }),
+    );
+    expect(warm.buildCompletion(request).body).toMatchObject({ keep_alive: "120s" });
+  });
+
   it("treats a remote Ollama server as cloud", () => {
     const remote = createAdapter(
       config({ id: "ol", kind: "ollama", model: "x", base_url: "https://ollama.example.com" }),

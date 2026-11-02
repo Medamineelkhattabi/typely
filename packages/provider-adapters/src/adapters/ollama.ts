@@ -37,6 +37,8 @@ export class OllamaAdapter implements ProviderAdapter {
       ...optional("temperature", this.config.temperature),
       ...optional("num_predict", this.config.max_output_tokens),
     };
+    // 0 = unload right after this request (Ollama's own default keeps models for 5 minutes).
+    const keepAliveSeconds = this.config.keep_alive_seconds ?? 0;
     return {
       method: "POST",
       path: "/api/chat",
@@ -49,6 +51,7 @@ export class OllamaAdapter implements ProviderAdapter {
           { role: "user", content: request.user },
         ],
         stream: false,
+        keep_alive: keepAliveSeconds === 0 ? 0 : `${keepAliveSeconds}s`,
         ...optional("format", format),
         ...optional("options", Object.keys(options).length > 0 ? options : undefined),
       },
