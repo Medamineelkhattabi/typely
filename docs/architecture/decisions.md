@@ -173,3 +173,27 @@ default in Rust. TypeScript locals and internal interfaces stay camelCase.
 up to three passes because one fix can reveal another ("teh the" → "the the" → "the").
 Rule messages for shared rules are currently English; UIs will localise them by
 `rule_id` in Phase 2.
+
+---
+
+## ADR-015 — Local-model policy
+
+**Context.** The Ollama benchmark
+([ollama-benchmark.md](../development/ollama-benchmark.md)) on the reference laptop
+(i7-1355U, Iris Xe) found:
+- the cloud prompt costs ~13 s of CPU prompt processing;
+- reasoning models think by default, taking 200 s for one sentence;
+- Ollama keeps models loaded for 5 minutes and samples at temperature 0.8.
+
+**Decision.** For Ollama, the adapter defaults to `keep_alive: 0` (unload after every
+request), `think: false` and temperature 0.2. Prompts for local endpoints use a
+**compact profile**: no schema dump (Ollama enforces it through `format`), shorter rules,
+and at most 3 explanations for corrections and none for rewrites. Highlights come from
+the engine's own diff. Each default is overridable per provider (`keep_alive_seconds`,
+`thinking`, `temperature`, `prompt_profile`). Prompts are built per provider inside the
+fallback chain.
+
+**Consequences.**
+- Corrections are 2.5–3× faster and repeatable.
+- Typely holds no model memory while idle; every request pays the load time (~2–3 s with a 1B model).
+- 1–2B local models are limited to simple corrections; see roadmap gating.

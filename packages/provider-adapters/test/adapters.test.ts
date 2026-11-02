@@ -306,6 +306,14 @@ describe("Ollama adapter", () => {
     });
   });
 
+  it("uses a low default temperature for repeatable corrections", () => {
+    expect(adapter.buildCompletion(request).body).toMatchObject({ options: { temperature: 0.2 } });
+    const custom = createAdapter(
+      config({ id: "ol", kind: "ollama", model: "x", temperature: 0.7 }),
+    );
+    expect(custom.buildCompletion(request).body).toMatchObject({ options: { temperature: 0.7 } });
+  });
+
   it("disables reasoning by default and allows opting in", () => {
     expect(adapter.buildCompletion(request).body).toMatchObject({ think: false });
     const thinker = createAdapter(config({ id: "ol", kind: "ollama", model: "x", thinking: true }));

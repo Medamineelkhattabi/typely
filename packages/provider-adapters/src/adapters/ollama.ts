@@ -10,6 +10,8 @@ import type {
 } from "../types.ts";
 import { ensureOk, invalid, isObject, optional, resolveBaseUrl, toCount } from "./shared.ts";
 
+const DEFAULT_TEMPERATURE = 0.2;
+
 /** Ollama native `/api/chat`. Local by default; a remote Ollama URL is treated as cloud. */
 export class OllamaAdapter implements ProviderAdapter {
   readonly config: ProviderConfig;
@@ -34,7 +36,8 @@ export class OllamaAdapter implements ProviderAdapter {
       format = request.jsonSchema.schema;
     else if (jsonMode !== "none") format = "json";
     const options = {
-      ...optional("temperature", this.config.temperature),
+      // Ollama defaults to 0.8; corrections must be repeatable (same input, same output).
+      temperature: this.config.temperature ?? DEFAULT_TEMPERATURE,
       ...optional("num_predict", this.config.max_output_tokens),
     };
     // 0 = unload right after this request (Ollama's own default keeps models for 5 minutes).
@@ -56,7 +59,7 @@ export class OllamaAdapter implements ProviderAdapter {
         // as qwen3.5 emit thousands of hidden tokens per correction.
         think: this.config.thinking ?? false,
         ...optional("format", format),
-        ...optional("options", Object.keys(options).length > 0 ? options : undefined),
+        options,
       },
     };
   }

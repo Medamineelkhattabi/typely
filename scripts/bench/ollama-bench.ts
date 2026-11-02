@@ -116,8 +116,9 @@ async function runCase(
   c: BenchCase,
   sampler: ProcessSampler,
   probe: InterferenceProbe,
+  extra: Partial<ProviderConfigInput> = {},
 ): Promise<CaseResult> {
-  const { engine, recorder } = makeEngine([provider(model)]);
+  const { engine, recorder } = makeEngine([provider(model, extra)]);
   const mark = sampler.mark();
   const startedAt = Date.now();
   const started = performance.now();
@@ -182,7 +183,13 @@ async function idleBaseline(sampler: ProcessSampler, probe: InterferenceProbe, m
   };
 }
 
-async function bench(models: string[], out: string | undefined, onlyCases?: string[]) {
+async function bench(
+  models: string[],
+  out: string | undefined,
+  onlyCases?: string[],
+  repeat = 1,
+  extra: Partial<ProviderConfigInput> = {},
+) {
   const sampler = new ProcessSampler();
   const probe = new InterferenceProbe();
   await sampler.start();
@@ -196,8 +203,8 @@ async function bench(models: string[], out: string | undefined, onlyCases?: stri
     const cases = CORPUS.filter((c) => onlyCases === undefined || onlyCases.includes(c.id));
     for (const model of models) {
       const results: CaseResult[] = [];
-      for (const c of cases) {
-        const r = await runCase(model, c, sampler, probe);
+      for (const c of cases.flatMap((x) => Array.from({ length: repeat }, () => x))) {
+        const r = await runCase(model, c, sampler, probe, extra);
         results.push(r);
         console.log(
           `${model} ${r.id}: ${r.ok ? "ok" : `FAIL ${r.error}`} wall=${r.wallMs}ms load=${r.loadMs}ms ` +
@@ -318,6 +325,8 @@ const { values, positionals } = parseArgs({
     models: { type: "string" },
     out: { type: "string" },
     cases: { type: "string" },
+    repeat: { type: "string" },
+    temperature: { type: "string" },
   },
 });
 const command = positionals[0];
@@ -326,6 +335,8 @@ if (command === "bench") {
     (values.models ?? values.model ?? "").split(",").filter(Boolean),
     values.out,
     values.cases?.split(","),
+    values.repeat === undefined ? 1 : Number(values.repeat),
+    values.temperature === undefined ? {} : { temperature: Number(values.temperature) },
   );
 } else if (command === "startup" && values.model) {
   await startup(values.model);

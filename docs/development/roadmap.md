@@ -29,7 +29,8 @@ An item is only checked when it is implemented **and** tested; "compiles" is not
 - [x] Engine: `check()` and `run()` with consent gate and size limits
 - [x] Unit tests for all of the above
 - [x] Dev CLI (`npm run typely`) to exercise the engine against a real provider
-- [ ] Live smoke test against at least one real provider (needs a key or local Ollama — user action)
+- [x] Live validation against a real provider: Ollama, gemma3:1b and qwen3.5:2b, fr/en/ar ([ollama-benchmark.md](ollama-benchmark.md))
+- [x] Local-model resource policy: unload after use, no reasoning, temperature 0.2, compact prompt
 
 ## Phase 2 — Windows MVP
 
@@ -46,6 +47,12 @@ Prerequisite: Rust toolchain + MSVC Build Tools (see setup.md). Move repo out of
 - [ ] `packages/ui` shared components (only those reused by the extension)
 - [ ] Localise shared local-rule messages by `rule_id` (currently English; ADR-014)
 - [ ] Desktop tests: shortcut, capture in Notepad / Word / Outlook / Teams / browser, clipboard restore, elevated-app failure path
+- [ ] Local AI: detect an installed Ollama (never bundle it), show its status, recommend `OLLAMA_IGPU_ENABLE=1` and `OLLAMA_NO_CLOUD=1`
+- [ ] Gate local small models to `fix` by default; other operations and Arabic AI correction labelled experimental
+- [ ] Show guard warnings (`language_changed`, `excessive_changes`, `protected_token_lost`) before _Replace_
+- [ ] Tune `excessive_changes` for short error-dense text and Arabic (false positives in the benchmark)
+- [ ] Decide on hint placement for the compact prompt (qwen3.5 echoed the hint block)
+- [ ] Re-run the Ollama benchmark on AC power; validate a 4B-class model on the iGPU (needs a download approval)
 - [ ] **MVP usability gate** before Phase 3
 
 ## Phase 3 — Browser extension

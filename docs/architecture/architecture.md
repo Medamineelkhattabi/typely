@@ -118,6 +118,9 @@ data, never as instructions). The model must answer a fixed JSON contract:
 }
 ```
 
+Local endpoints (Ollama, loopback servers) get a **compact prompt profile**: about a
+third of the tokens, no schema dump, capped explanations (ADR-015).
+
 The engine enriches it into the public `CorrectionResult` (operation, structured
 warnings, diff segments, provider/model, usage, latency, attempts).
 
