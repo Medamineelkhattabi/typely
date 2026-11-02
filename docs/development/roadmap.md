@@ -1,0 +1,87 @@
+# TYPELY — Roadmap & Development Checklist
+
+Legend: `[x]` done and verified · `[~]` in progress · `[ ]` not started.
+An item is only checked when it is implemented **and** tested; "compiles" is not done.
+
+## Phase 0 — Discovery & architecture ✅
+
+- [x] Inspect environment (see [setup.md](setup.md#environment-snapshot))
+- [x] Validate architecture, record decisions (ADR-001 … ADR-012)
+- [x] Verify provider structured-output APIs against current docs (OpenAI, Anthropic, Gemini, Ollama)
+- [x] Threat model
+- [x] Repository structure, tooling (npm workspaces, TypeScript strict, Biome, Vitest)
+
+## Phase 1 — Shared core
+
+- [x] `schemas`: operations, languages, requests, results, issues, settings, LLM output contract
+- [x] Language profiles: French, English, Arabic (stop-words, scripts, rules, prompt guidance)
+- [x] Language detection with confidence, mixed-language flag, user override
+- [x] Protected spans (URLs, e-mails, inline/fenced code, mentions, hashtags)
+- [x] Layer 1 local rules + safe fix application
+- [x] Word-level diff (Myers, `Intl.Segmenter`, RTL-safe)
+- [x] Operation definitions & prompt builder (8 operations)
+- [x] JSON extraction, validation, single repair attempt
+- [x] Guards: language drift, lost protected tokens, over-editing on `fix`
+- [x] Provider adapters: OpenAI, OpenAI-compatible, Anthropic, Gemini, Ollama (+ `listModels`)
+- [x] Transport interface, `DirectTransport` with endpoint-id secret resolution
+- [x] Retry with backoff + provider fallback chain + cancellation
+- [x] LanguageTool client (Layer 2) + merge with local issues
+- [x] Engine: `check()` and `run()` with consent gate and size limits
+- [x] Unit tests for all of the above
+- [x] Dev CLI (`npm run typely`) to exercise the engine against a real provider
+- [ ] Live smoke test against at least one real provider (needs a key or local Ollama — user action)
+
+## Phase 2 — Windows MVP
+
+Prerequisite: Rust toolchain + MSVC Build Tools (see setup.md). Move repo out of OneDrive.
+
+- [ ] Tauri 2 scaffold (`apps/desktop`), Cargo workspace, CI build
+- [ ] Rust: settings store, keyring secrets, `provider_request` command (reqwest), auth-scheme contract test
+- [ ] Rust: single instance, tray, autostart toggle
+- [ ] Global shortcut (configurable, conflict detection)
+- [ ] Selection capture: UI Automation → clipboard fallback with snapshot/restore
+- [ ] Floating panel: positioning, focus handling, states (loading / result / error / no selection)
+- [ ] Replace selection (refocus + paste + clipboard restore), copy, retry, rewrite options
+- [ ] Main window: dashboard, writing assistant (diff view), providers, languages, shortcuts, privacy, general
+- [ ] `packages/ui` shared components (only those reused by the extension)
+- [ ] Localise shared local-rule messages by `rule_id` (currently English; ADR-014)
+- [ ] Desktop tests: shortcut, capture in Notepad / Word / Outlook / Teams / browser, clipboard restore, elevated-app failure path
+- [ ] **MVP usability gate** before Phase 3
+
+## Phase 3 — Browser extension
+
+- [ ] MV3 scaffold (`apps/extension`), Vite build, Chrome + Edge
+- [ ] Service worker running the engine; companion (native messaging) and standalone transports
+- [ ] `native/bridge` Rust host + per-user registry install for Chrome and Edge
+- [ ] Editable-field detection, sensitive-field exclusion, allow/blocklist
+- [ ] Selection toolbar (Correct, Rewrite, Professional, Concise, Clarity, Translate, Explain)
+- [ ] Inline indicators (Shadow-DOM overlay, debounced `check()`)
+- [ ] Replacement preserving undo (`setRangeText`, `execCommand('insertText')`, `beforeinput`)
+- [ ] Site adapters, tested in order: ChatGPT, Teams web, Gmail, Outlook web, LinkedIn, WhatsApp Web, Google Docs (investigation)
+- [ ] Playwright e2e on local fixtures replicating each editor (ProseMirror, Lexical, Draft.js, Quill, CKEditor) + manual checklist on live sites
+
+## Phase 4 — Advanced capabilities
+
+- [ ] Richer local Layer 1 (Hunspell / Harper evaluation, licence review)
+- [ ] Self-hosted LanguageTool guide (Docker) and settings UI
+- [ ] Translation UX, target-language memory per site/app
+- [ ] Prompt-improvement UX tuned for ChatGPT and Gemini
+- [ ] Usage statistics + user-editable price table for cost estimates
+- [ ] Operation-specific models, fallback configuration UI
+- [ ] Gemini native schema enforcement (revisit ADR-009)
+
+## Phase 5 — Production readiness
+
+- [ ] Security review against threat model; `npm audit`, `cargo audit`
+- [ ] Performance budget: idle RAM, startup time, extension content-script cost
+- [ ] Local error log + export
+- [ ] Windows installer (NSIS/MSI via Tauri bundler), code signing, updater
+- [ ] Chrome Web Store and Edge Add-ons packages, privacy policy
+- [ ] Complete user & developer documentation
+
+## Recommended MVP scope
+
+Desktop shortcut flow (select → Ctrl+Shift+Space → panel → Fix / Rewrite / Professional
+/ Concise / Translate → Replace or Copy) with one cloud provider **or** Ollama, French /
+English / Arabic, hybrid mode, consent gate, keyring storage. Extension and inline
+indicators follow once the desktop MVP is validated in daily use.
