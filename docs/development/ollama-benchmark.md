@@ -183,6 +183,35 @@ homophones, Arabic hamza).
 - **gemma3:4b:** about 3.5× slower and 3× the RAM of gemma3:1b, held only while it runs. 4.5 GB was comfortable with ~10.6 GB free on this 32 GB machine; on a 16 GB machine with a browser and Teams open it would not be.
 - **gemma3:1b:** fast enough to feel interactive. Too unreliable outside English/French fixes.
 
+## Latency against the 2-second target (2026-11-03)
+
+Harness: [`scripts/bench/ollama-latency.ts`](../../scripts/bench/ollama-latency.ts).
+- **Setup:** iGPU, AC power, ~20-word messages in fr/en/ar, temperature 0.2, `think: false`, compact prompt.
+- **Cold:** model loaded for the request (today's policy).
+- **Warm:** model already in memory; the cached system prompt is reused but the message is new, as with a real follow-up request.
+- **Times:** client-side end-to-end; "first words" is the streaming time to the first token. Medians over the 3 languages.
+
+| Model     | Output                      | Cold   | Warm                 | First words (warm) |
+| --------- | --------------------------- | ------ | -------------------- | ------------------ |
+| gemma3:1b | JSON + up to 3 explanations | 5.5 s  | 3.7 s (max 7.0)      | 0.59 s             |
+| gemma3:1b | JSON, no explanations       | 5.0 s  | 2.8 s                | 0.54 s             |
+| gemma3:1b | **plain corrected text**    | 3.7 s  | **1.4 s (max 1.55)** | **0.46 s**         |
+| gemma3:4b | JSON + up to 3 explanations | 25.1 s | 20.7 s               | 2.3 s              |
+| gemma3:4b | JSON, no explanations       | 13.3 s | 9.1 s                | 2.3 s              |
+| gemma3:4b | plain corrected text        | 9.4 s  | 4.6 s                | 1.7 s              |
+
+Where the time goes (gemma3:1b):
+- **Model load:** 2.2–2.6 s, paid on every cold request.
+- **Prompt:** 0.43–0.55 s warm (136–215 tokens).
+- **Generation:** ~25 tokens/s. The corrected sentence alone is ~25 tokens (~0.9 s); JSON wrapping adds ~30 tokens; explanations add 30–80 more.
+
+**Conclusions**
+- Under 2 s is reachable only with **gemma3:1b, warm, plain-text output**: 1.35–1.55 s for a ~20-word message, first words after ~0.46 s. Generation scales with length (~25 tokens/s), so a 100-word paragraph takes ~5 s even then. Streaming keeps it feeling immediate.
+- **Cold, 2 s is impossible.** Loading gemma3:1b alone takes 2.2 s. The current "unload immediately" policy and a 2-second target cannot both hold.
+- gemma3:4b cannot meet 2 s on this hardware in any configuration.
+- The deterministic local layer (no model) answers in under 50 ms and can always be shown first.
+- Plain-text output loses model-written explanations. The engine would derive highlights from its diff and reasons from the local rules. Quality was unchanged on these samples, except that gemma3:1b again missed the Arabic hamza fixes (إرسال, لأن) that gemma3:4b made.
+
 ## Recommended configuration
 
 Use both models, each where it is good, through the engine's existing per-operation

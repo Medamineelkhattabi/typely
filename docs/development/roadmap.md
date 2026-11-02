@@ -56,6 +56,7 @@ Prerequisite: Rust toolchain + MSVC Build Tools (see setup.md). Move repo out of
 - [ ] Two-tier local setup in the UI: gemma3:1b for `fix`, gemma3:4b for the other operations; 1B-only on ≤ 16 GB machines
 - [ ] Language-aware routing (send Arabic corrections to the quality model)
 - [ ] Measure dropping model-written explanations for local `fix` (estimated 4B: ~11–14 s instead of ~17 s)
+- [ ] 2-second target ([latency results](ollama-benchmark.md#latency-against-the-2-second-target-2026-11-03)): plain-text output mode for local `fix`, streaming into the panel, instant local-rule results first, and a warm-model policy (needs a product decision)
 - [ ] **MVP usability gate** before Phase 3
 
 ## Phase 3 — Browser extension
