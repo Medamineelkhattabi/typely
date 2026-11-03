@@ -14,6 +14,14 @@
   --warn-fg: #6b4c00;
   --error-fg: #b42318;
   --ok-fg: #11652f;
+  --brand-1: #4f6bff;
+  --brand-2: #9b5cff;
+  --brand-3: #22c3b4;
+  --brand: linear-gradient(110deg, var(--brand-1), var(--brand-2) 55%, var(--brand-3));
+  --stage-bg: linear-gradient(180deg, #f7f8ff, #f2f4fb);
+  --stage-border: #e1e4f2;
+  --fix-glow: rgba(34, 170, 90, 0.35);
+  --scan: rgba(110, 120, 255, 0.16);
   color-scheme: light dark;
   font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   font-size: 14px;
@@ -37,6 +45,13 @@
     --warn-fg: #f5d98a;
     --error-fg: #ff8a80;
     --ok-fg: #9fe3b4;
+    --brand-1: #6d84ff;
+    --brand-2: #b07cff;
+    --brand-3: #3fd6c6;
+    --stage-bg: linear-gradient(180deg, #23262f, #1f2129);
+    --stage-border: #343846;
+    --fix-glow: rgba(110, 231, 160, 0.3);
+    --scan: rgba(140, 150, 255, 0.13);
   }
 }
 
@@ -246,13 +261,17 @@ pre {
   border: 1px solid var(--border);
 }
 .panel header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px 6px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 7px 8px 7px 12px;
   user-select: none;
   cursor: move;
+}
+.panel header strong {
+  font-weight: 650;
+  letter-spacing: 0.01em;
 }
 .panel header .muted {
   flex: 1;
@@ -265,7 +284,404 @@ pre {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 8px 12px 4px;
+  padding: 6px 12px 4px;
+}
+
+/* Brand mark: a gradient orb that turns while a correction runs. */
+.orb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: conic-gradient(
+    from 0deg,
+    var(--brand-1),
+    var(--brand-2),
+    var(--brand-3),
+    var(--brand-1)
+  );
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-2) 18%, transparent);
+}
+.busy .orb {
+  animation:
+    spin 1.1s linear infinite,
+    orb-glow 1.6s ease-in-out infinite;
+}
+@keyframes orb-glow {
+  50% {
+    box-shadow:
+      0 0 0 4px color-mix(in srgb, var(--brand-2) 22%, transparent),
+      0 0 12px 2px color-mix(in srgb, var(--brand-1) 45%, transparent);
+  }
+}
+
+/* Thin line under the header: a moving comet while running, a full sweep when done. */
+.rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.rail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--brand);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.rail.running::after {
+  width: 40%;
+  transform: none;
+  animation: comet 1.3s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+.rail.complete::after {
+  animation:
+    sweep 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards,
+    fade 0.6s 1.4s forwards;
+}
+@keyframes comet {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@keyframes shine {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+@keyframes sweep {
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes fade {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The stage: the selected text, corrected in place. */
+.stage {
+  padding: 10px 12px 2px;
+  animation: enter 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.stage-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--stage-border);
+  border-radius: 12px;
+  background: var(--stage-bg);
+  padding: 10px 12px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 6px 18px -10px rgba(40, 50, 120, 0.25);
+  transition:
+    border-color 0.4s,
+    box-shadow 0.4s;
+}
+/* While checking, the border becomes a slowly flowing brand gradient. */
+.stage-card.scanning {
+  border-color: transparent;
+  background:
+    var(--stage-bg) padding-box,
+    linear-gradient(110deg, var(--brand-1), var(--brand-2), var(--brand-3), var(--brand-1))
+    border-box;
+  background-size:
+    100% 100%,
+    300% 100%;
+  animation: flow 2.4s linear infinite;
+  box-shadow: 0 8px 24px -12px color-mix(in srgb, var(--brand-2) 55%, transparent);
+}
+@keyframes flow {
+  to {
+    background-position:
+      0 0,
+      -300% 0;
+  }
+}
+/* A band of light reads across the text while it is being checked. */
+.stage-card.scanning::after,
+.stage-card.finished::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(100deg, transparent 25%, var(--scan) 50%, transparent 75%);
+  transform: translateX(-100%);
+}
+.stage-card.scanning::after {
+  animation: comet 1.7s ease-in-out infinite;
+}
+.stage-card.finished::after {
+  background: linear-gradient(100deg, transparent 25%, var(--fix-glow) 50%, transparent 75%);
+  opacity: 0.5;
+  animation: shine 0.9s ease-out 1 forwards;
+}
+.stage-card.finished.changed {
+  border-color: color-mix(in srgb, var(--ok-fg) 30%, var(--stage-border));
+}
+.stage-text {
+  margin: 0;
+  max-height: 124px;
+  overflow-y: auto;
+  /* Room for words rising in, so no scrollbar flickers during the animation. */
+  padding-bottom: 6px;
+  margin-bottom: -6px;
+  font-size: 15px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* A wrong word: struck out by a drawn line, then folded away. Hovering the card shows it again. */
+.stage-text del {
+  text-decoration: none;
+  background:
+    linear-gradient(var(--del-fg), var(--del-fg)) no-repeat 0 58% / 0% 1.5px,
+    var(--del-bg);
+  border-radius: 4px;
+  padding: 0 1px;
+  animation:
+    strike 0.4s var(--d, 0ms) cubic-bezier(0.6, 0, 0.3, 1) forwards,
+    fold 0.35s calc(var(--d, 0ms) + 0.9s) ease-in forwards;
+}
+.stage-card:hover .stage-text del {
+  animation: none;
+  background-size:
+    100% 1.5px,
+    auto;
+  opacity: 0.6;
+}
+@keyframes strike {
+  to {
+    background-size:
+      100% 1.5px,
+      auto;
+  }
+}
+@keyframes fold {
+  to {
+    background-size:
+      100% 1.5px,
+      auto;
+    opacity: 0;
+    font-size: 0;
+    padding: 0;
+  }
+}
+/* The right word: rises in sharp, with a brief green glow. */
+.stage-text ins {
+  display: inline-block;
+  white-space: pre-wrap;
+  border-radius: 4px;
+  padding: 0 2px;
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--ins-fg) 55%, transparent);
+  animation:
+    rise 0.5s calc(var(--d, 0ms) + 0.35s) cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    glow 1.1s calc(var(--d, 0ms) + 0.6s) ease-out;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.96);
+    filter: blur(4px);
+  }
+}
+@keyframes glow {
+  from {
+    box-shadow:
+      inset 0 -2px 0 var(--ins-fg),
+      0 0 0 0 var(--fix-glow);
+  }
+  to {
+    box-shadow:
+      inset 0 -2px 0 color-mix(in srgb, var(--ins-fg) 55%, transparent),
+      0 0 0 7px transparent;
+  }
+}
+.fade-in {
+  animation: enter 0.4s ease-out;
+}
+
+.check-mark {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.check-mark path {
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  animation: draw 0.35s 0.05s ease-out forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.stage-badge .check-mark {
+  width: 12px;
+  height: 12px;
+}
+/* Steps under the card: Grammar → AI review → Ready. */
+.stage-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 6px 2px 0;
+  font-size: 12px;
+}
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex: 1;
+  color: var(--muted);
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+.step + .step::before {
+  content: "";
+  width: 18px;
+  height: 1.5px;
+  margin: 0 6px;
+  border-radius: 1px;
+  background: var(--border);
+  transition: background 0.4s;
+}
+.step.done + .step::before,
+.step.done + .step.active::before {
+  background: var(--brand);
+}
+.step .dot {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  transition:
+    background 0.3s,
+    border-color 0.3s;
+}
+.step.active {
+  color: var(--fg);
+}
+.step.active .dot {
+  border-color: var(--brand-1);
+  animation: pulse 1.4s ease-out infinite;
+}
+.step.done {
+  color: var(--fg);
+}
+.step.done .dot {
+  border-color: transparent;
+  background: var(--brand);
+}
+.step.done .check-mark {
+  width: 10px;
+  height: 10px;
+  stroke: #fff;
+}
+.step.failed .dot {
+  border-color: var(--error-fg);
+}
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand-1) 45%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+.stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  background: var(--ins-bg);
+  color: var(--ins-fg);
+  font-weight: 600;
+  white-space: nowrap;
+  animation: pop 0.45s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.stage-time {
+  color: var(--muted);
+  font-weight: 400;
+}
+.stage-badge.pending {
+  background: var(--bg-soft);
+  color: var(--muted);
+  font-weight: 500;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+.panel footer kbd {
+  margin-left: 6px;
+  border-color: color-mix(in srgb, var(--accent-fg) 40%, transparent);
+  font-size: 10px;
+  opacity: 0.8;
+}
+.panel footer button.primary:not(:disabled) {
+  background: var(--brand);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--brand-1) 70%, transparent);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.panel footer button.primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--brand-2) 80%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel *,
+  .panel *::before,
+  .panel *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every animation */
+    animation-duration: 1ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every animation */
+    animation-delay: 0ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every animation */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: reduced motion must win over every animation */
+    transition: none !important;
+  }
 }
 .chip {
   padding: 2px 9px;
@@ -432,4 +848,25 @@ td {
 }
 .suggestions .reason {
   color: var(--muted);
+}
+
+/* Explanations arrive one after another. */
+.is-panel .explanations {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 8px;
+  display: grid;
+  gap: 5px;
+}
+.is-panel .explanations li {
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--bg-soft);
+  box-shadow: inset 2px 0 0 color-mix(in srgb, var(--brand-2) 70%, transparent);
+  animation: enter 0.35s calc(var(--i, 0) * 70ms + 0.3s) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.is-panel .explanations .reason {
+  display: block;
+  font-size: 12px;
+  margin-top: 1px;
 }

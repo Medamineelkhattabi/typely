@@ -1,4 +1,5 @@
 import type { CorrectionResult, DiffSegment, ResultWarning } from "@typely/schemas";
+import type { CSSProperties } from "react";
 import type { CorrectionState } from "../correction.ts";
 
 const WARNING_TEXT: Partial<Record<ResultWarning["code"], string>> = {
@@ -85,15 +86,18 @@ function Result({
   result,
   original,
   onChoose,
+  showText,
 }: {
   result: CorrectionResult;
   original: string;
   onChoose?: OnChoose;
+  /** False where the text is already shown (the panel's stage). */
+  showText: boolean;
 }) {
   const unchanged = result.corrected_text === original;
   return (
     <>
-      {unchanged ? (
+      {!showText ? null : unchanged ? (
         <p className="muted">No changes needed.</p>
       ) : result.operation === "fix" ? (
         <Diff segments={result.changes} />
@@ -107,7 +111,7 @@ function Result({
         <ul className="explanations">
           {result.explanation.slice(0, 8).map((e, i) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: items have no identity
-            <li key={i} dir="auto">
+            <li key={i} dir="auto" style={{ "--i": i } as CSSProperties}>
               {e.original && <del>{e.original}</del>}
               {e.original && e.corrected && " → "}
               {e.corrected && <ins>{e.corrected}</ins>}
@@ -118,14 +122,22 @@ function Result({
       )}
       <Suggestions result={result} {...(onChoose === undefined ? {} : { onChoose })} />
       <p className="meta">
-        {result.meta.model ?? "local rules"} · {result.detected_language} ·{" "}
-        {(result.meta.duration_ms / 1000).toFixed(1)} s
+        {result.meta.model ?? "local rules"} · {result.detected_language}
+        {showText && ` · ${(result.meta.duration_ms / 1000).toFixed(1)} s`}
       </p>
     </>
   );
 }
 
-export function ResultView({ state, onChoose }: { state: CorrectionState; onChoose?: OnChoose }) {
+export function ResultView({
+  state,
+  onChoose,
+  showText = true,
+}: {
+  state: CorrectionState;
+  onChoose?: OnChoose;
+  showText?: boolean;
+}) {
   switch (state.status) {
     case "idle":
       return null;
@@ -156,6 +168,7 @@ export function ResultView({ state, onChoose }: { state: CorrectionState; onChoo
         <Result
           result={state.result}
           original={state.original}
+          showText={showText}
           {...(onChoose === undefined ? {} : { onChoose })}
         />
       );

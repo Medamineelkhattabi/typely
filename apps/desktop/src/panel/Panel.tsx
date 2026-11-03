@@ -1,6 +1,7 @@
 import { getOperation } from "@typely/correction-engine";
 import { OPERATIONS, type Operation } from "@typely/schemas";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CorrectionStage } from "../components/CorrectionStage.tsx";
 import { ResultView } from "../components/ResultView.tsx";
 import { modeFor, useCorrection, useSettings } from "../correction.ts";
 import {
@@ -165,10 +166,12 @@ export function Panel() {
       ? usable.find((p) => p.id !== answeredBy.id && !isSmallModel(p.model))
       : undefined;
   const password = capture?.error?.code === "password_field";
+  const busy = state.status === "running";
 
   return (
-    <div className="panel">
+    <div className={busy ? "panel busy" : "panel"}>
       <header data-tauri-drag-region>
+        <span className="orb" aria-hidden="true" data-tauri-drag-region />
         <strong data-tauri-drag-region>Typely</strong>
         <span
           className="muted"
@@ -192,7 +195,13 @@ export function Panel() {
         <button type="button" className="icon" onClick={close} aria-label="Close">
           ×
         </button>
+        <span
+          className={`rail ${busy ? "running" : state.status === "done" ? "complete" : ""}`}
+          aria-hidden="true"
+        />
       </header>
+
+      <CorrectionStage key={capture?.id} state={state} localOnly={localOnly} />
 
       <nav className="operations" aria-label="Action">
         {OPERATIONS.map((op) => (
@@ -242,7 +251,7 @@ export function Panel() {
             Experimental with a small local model ({head.model}); results may be unreliable.
           </p>
         )}
-        <ResultView state={state} onChoose={choose} />
+        {!busy && <ResultView state={state} onChoose={choose} showText={false} />}
         {deeper !== undefined && (
           <p className="deeper">
             <button type="button" onClick={() => void run("fix", text, target, deeper.id)}>
@@ -288,6 +297,7 @@ export function Panel() {
                 onClick={replace}
               >
                 Replace
+                {changed && <kbd>Ctrl ↵</kbd>}
               </button>
             )}
           </>
