@@ -2,6 +2,7 @@ import { createAdapter } from "@typely/provider-adapters";
 import {
   EngineSettingsSchema,
   LanguageCodeSchema,
+  type Operation,
   OperationSchema,
   type ProviderConfig,
 } from "@typely/schemas";
@@ -37,6 +38,14 @@ export function defaultSettings(): AppSettings {
 /** Whether a provider sends text off the machine (not Ollama on loopback, not a loopback URL). */
 export function isCloudProvider(provider: ProviderConfig): boolean {
   return !createAdapter(provider).isLocal;
+}
+
+/** Shown next to actions that local mode cannot run. */
+export const NEEDS_AI_HINT = "Needs an AI model: set up Local AI or add a provider";
+
+/** The operation to run: local mode only corrects, so any other choice falls back to `fix`. */
+export function runnableOperation(operation: Operation, localOnly: boolean): Operation {
+  return localOnly ? "fix" : operation;
 }
 
 /** Providers the engine will actually use: enabled and, for cloud ones, allowed by both switches. */
