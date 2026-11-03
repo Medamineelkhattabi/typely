@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Settings window: settings, secrets (write-only), provider requests, Ollama detection.",
+  "description": "Settings window: settings, secrets (write-only), provider requests, Ollama detection, copying a result.",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -13,6 +13,7 @@
     "allow-provider-request",
     "allow-provider-stream",
     "allow-provider-cancel",
-    "allow-ollama-detect"
+    "allow-ollama-detect",
+    "allow-panel-copy"
   ]
 }

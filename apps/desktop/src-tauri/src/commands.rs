@@ -21,6 +21,9 @@ pub struct SettingsView {
     settings: AppSettings,
     #[serde(skip_serializing_if = "Option::is_none")]
     warning: Option<String>,
+    /// Set when the saved shortcut could not be registered at startup.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shortcut_error: Option<String>,
 }
 
 #[tauri::command]
@@ -28,6 +31,11 @@ pub fn settings_get(state: State<'_, AppState>) -> SettingsView {
     SettingsView {
         settings: state.settings.get(),
         warning: state.settings.load_warning().map(str::to_owned),
+        shortcut_error: state
+            .shortcut_error
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone(),
     }
 }
 
@@ -38,6 +46,14 @@ pub fn settings_save(
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
     settings.validate()?;
+    if state.settings.get().desktop.shortcut != settings.desktop.shortcut {
+        // Register the new shortcut first: if another app owns it, nothing is saved.
+        crate::shortcut::register(&app, &settings.desktop.shortcut)?;
+    }
+    *state
+        .shortcut_error
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = None;
     let saved = state.settings.save(settings)?;
     let _ = app.emit(SETTINGS_CHANGED_EVENT, &saved);
     Ok(saved)

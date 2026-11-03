@@ -5,6 +5,7 @@
   "windows": ["panel"],
   "permissions": [
     "core:default",
+    "core:window:allow-start-dragging",
     "allow-settings-get",
     "allow-provider-request",
     "allow-provider-stream",
