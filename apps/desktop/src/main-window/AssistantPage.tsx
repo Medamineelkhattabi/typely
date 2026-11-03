@@ -9,7 +9,7 @@ import { type AppSettings, usableProviders } from "../settings.ts";
 
 /** Try the engine without the shortcut. Text typed here is not stored. */
 export function AssistantPage({ settings }: { settings: AppSettings }) {
-  const { state, run, cancel } = useCorrection(settings);
+  const { state, run, cancel, choose } = useCorrection(settings);
   const [text, setText] = useState("");
   const [operation, setOperation] = useState<Operation>(settings.desktop.default_operation);
   const [target, setTarget] = useState(settings.desktop.translate_target);
@@ -77,7 +77,7 @@ export function AssistantPage({ settings }: { settings: AppSettings }) {
         )}
       </div>
       <div className="result">
-        <ResultView state={state} />
+        <ResultView state={state} onChoose={choose} />
       </div>
     </>
   );

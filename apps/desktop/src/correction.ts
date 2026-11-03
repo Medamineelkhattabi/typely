@@ -1,4 +1,4 @@
-import { CorrectionEngine } from "@typely/correction-engine";
+import { CorrectionEngine, diffWords } from "@typely/correction-engine";
 import type { CorrectionResult, Operation } from "@typely/schemas";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { describeError, isCancellation } from "./errors.ts";
@@ -123,6 +123,35 @@ export function useCorrection(settings: AppSettings | undefined) {
     [engine, settings, cancel],
   );
 
+  /** Applies the user's choice for a suggestion ("vu" → "vus") to the finished result. */
+  const choose = useCallback((index: number, replacement: string) => {
+    setState((s) => {
+      if (s.status !== "done") return s;
+      const suggestion = s.result.suggestions?.[index];
+      if (suggestion === undefined) return s;
+      const text = replaceWord(s.result.corrected_text, suggestion.original, replacement);
+      return {
+        ...s,
+        result: {
+          ...s.result,
+          corrected_text: text,
+          changes: diffWords(s.original, text),
+          explanation: [
+            ...s.result.explanation,
+            {
+              original: suggestion.original,
+              corrected: replacement,
+              reason: suggestion.reason,
+              category: suggestion.category,
+              source: suggestion.source,
+            },
+          ],
+          suggestions: s.result.suggestions?.filter((_, i) => i !== index),
+        },
+      };
+    });
+  }, []);
+
   const reset = useCallback(() => {
     cancel();
     runId.current++;
@@ -131,5 +160,20 @@ export function useCorrection(settings: AppSettings | undefined) {
 
   useEffect(() => cancel, [cancel]);
 
-  return { state, run, cancel, reset };
+  return { state, run, cancel, reset, choose };
+}
+
+/** Replaces the first occurrence of `word` that is not part of a longer word. */
+export function replaceWord(text: string, word: string, replacement: string): string {
+  const letter = /[\p{L}\p{N}]/u;
+  for (let i = text.indexOf(word); i !== -1; i = text.indexOf(word, i + 1)) {
+    const before = text[i - 1];
+    const after = text[i + word.length];
+    if (
+      (before === undefined || !letter.test(before)) &&
+      (after === undefined || !letter.test(after))
+    )
+      return text.slice(0, i) + replacement + text.slice(i + word.length);
+  }
+  return text;
 }

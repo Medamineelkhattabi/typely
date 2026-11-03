@@ -515,6 +515,44 @@ describe("CorrectionEngine — check and LanguageTool", () => {
     expect(result.meta.layers).toEqual(["local", "languagetool"]);
     expect(result.confidence).toBe(0.8);
   });
+
+  it("lists findings it could not decide as suggestions", async () => {
+    const text = "Il faut que tu vien demain, je les ai vu a la gare.";
+    const at = (fragment: string, replacements: string[], categoryId: string, ruleId: string) => ({
+      message: ruleId,
+      offset: text.indexOf(fragment),
+      length: fragment.length,
+      replacements: replacements.map((value) => ({ value })),
+      rule: { id: ruleId, issueType: "grammar", category: { id: categoryId } },
+    });
+    const { engine: e } = engine(
+      { default_mode: "local", languagetool: lt },
+      {
+        languagetool: () => ({
+          status: 200,
+          headers: {},
+          body: {
+            matches: [
+              at("vien", ["viens"], "CAT_GRAMMAIRE", "TU_VERBE"),
+              at("vu", ["vus", "vues"], "CAT_GRAMMAIRE", "AUX_AVOIR"),
+              at("a la", ["à la"], "CAT_HOMONYMES_PARONYMES", "A_A_ACCENT"),
+            ],
+          },
+        }),
+      },
+    );
+    const result = await e.run({ operation: "fix", text });
+    expect(result.corrected_text).toBe("Il faut que tu viens demain, je les ai vu à la gare.");
+    expect(result.suggestions).toEqual([
+      {
+        original: "vu",
+        replacements: ["vus", "vues"],
+        reason: "AUX_AVOIR",
+        category: "grammar",
+        source: "languagetool",
+      },
+    ]);
+  });
 });
 
 describe("CorrectionEngine — provider test", () => {

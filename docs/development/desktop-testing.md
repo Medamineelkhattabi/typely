@@ -106,6 +106,11 @@ Through the panel in Notepad, with LanguageTool installed portably and turned on
   Overlapping findings now prefer a clear fix over a suggestion. Re-run in the panel:
   "Il faut que tu viens demain, je les ai vu à la gare." ("vu" is left: LanguageTool offers
   "vus" or "vues", which needs a human).
+- User test in WhatsApp right after the checker had stopped: only "à" (from the model), because
+  that correction started the checker. The panel now re-checks by itself once it is ready;
+  in Notepad, cold start: first "à" only with the note, then without any action "viens" and
+  "à", and "vu" listed under "To check" with "vus" and "vues". Choosing "vus" then Replace
+  pasted "Il faut que tu viens demain, je les ai vus à la gare."
 
 ## Browser (user test, 2026-11-03, after the focus fix)
 

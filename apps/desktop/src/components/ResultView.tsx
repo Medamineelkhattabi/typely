@@ -50,7 +50,46 @@ export function Warnings({ warnings }: { warnings: readonly ResultWarning[] }) {
   );
 }
 
-function Result({ result, original }: { result: CorrectionResult; original: string }) {
+/** Picks one candidate for a suggestion; without it the suggestions are only listed. */
+export type OnChoose = (index: number, replacement: string) => void;
+
+function Suggestions({ result, onChoose }: { result: CorrectionResult; onChoose?: OnChoose }) {
+  const suggestions = result.suggestions ?? [];
+  if (suggestions.length === 0) return null;
+  return (
+    <div className="suggestions">
+      <p className="label">To check</p>
+      <ul>
+        {suggestions.map((s, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: suggestions have no identity
+          <li key={i} dir="auto">
+            <del>{s.original}</del> →{" "}
+            {s.replacements.map((r) =>
+              onChoose === undefined ? (
+                <ins key={r}>{r}</ins>
+              ) : (
+                <button type="button" key={r} className="chip" onClick={() => onChoose(i, r)}>
+                  {r}
+                </button>
+              ),
+            )}
+            <span className="reason"> {s.reason}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Result({
+  result,
+  original,
+  onChoose,
+}: {
+  result: CorrectionResult;
+  original: string;
+  onChoose?: OnChoose;
+}) {
   const unchanged = result.corrected_text === original;
   return (
     <>
@@ -77,6 +116,7 @@ function Result({ result, original }: { result: CorrectionResult; original: stri
           ))}
         </ul>
       )}
+      <Suggestions result={result} {...(onChoose === undefined ? {} : { onChoose })} />
       <p className="meta">
         {result.meta.model ?? "local rules"} · {result.detected_language} ·{" "}
         {(result.meta.duration_ms / 1000).toFixed(1)} s
@@ -85,7 +125,7 @@ function Result({ result, original }: { result: CorrectionResult; original: stri
   );
 }
 
-export function ResultView({ state }: { state: CorrectionState }) {
+export function ResultView({ state, onChoose }: { state: CorrectionState; onChoose?: OnChoose }) {
   switch (state.status) {
     case "idle":
       return null;
@@ -112,7 +152,13 @@ export function ResultView({ state }: { state: CorrectionState }) {
         </div>
       );
     case "done":
-      return <Result result={state.result} original={state.original} />;
+      return (
+        <Result
+          result={state.result}
+          original={state.original}
+          {...(onChoose === undefined ? {} : { onChoose })}
+        />
+      );
     case "error":
       return <p className="error">{state.message}</p>;
   }

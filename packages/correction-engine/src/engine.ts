@@ -34,6 +34,7 @@ import {
   type LlmCorrectionOutput,
   type Operation,
   type ResultWarning,
+  type Suggestion,
   type Usage,
 } from "@typely/schemas";
 import { detectLanguage, type LanguageDetection } from "./detect.ts";
@@ -55,7 +56,7 @@ import {
   type PromptProfile,
   stripEchoedDelimiters,
 } from "./prompts.ts";
-import { applyFixes, fixLocally, mergeIssues, runLocalRules } from "./rules/index.ts";
+import { applyFixes, fixLocally, isApplicable, mergeIssues, runLocalRules } from "./rules/index.ts";
 import type { Speller } from "./spelling/speller.ts";
 import { charEditRatio, diffWords } from "./text/diff.ts";
 import { findProtectedSpans, overlapsAny } from "./text/protected.ts";
@@ -232,6 +233,7 @@ export class CorrectionEngine {
         confidence: findings.layers.includes("languagetool") ? 0.8 : 0.6,
         warnings: [...warnings, ...findings.warnings],
         meta: { mode, layers: findings.layers, attempts: [] },
+        issues: findings.issues,
         started,
       });
     }
@@ -450,6 +452,7 @@ export class CorrectionEngine {
       confidence: rejection === undefined ? outcome.output.confidence : LOCAL_ONLY_CONFIDENCE,
       warnings,
       changes,
+      ...(operation.id === "fix" ? { issues: findings.issues } : {}),
       meta: {
         mode,
         layers,
@@ -737,6 +740,8 @@ export class CorrectionEngine {
     confidence: number;
     warnings: ResultWarning[];
     changes?: CorrectionResult["changes"];
+    /** Findings on the original text; those not applied become suggestions. */
+    issues?: readonly GrammarIssue[];
     meta: Omit<CorrectionResult["meta"], "duration_ms">;
     started: number;
   }): CorrectionResult {
@@ -750,6 +755,9 @@ export class CorrectionEngine {
       language_confidence: parts.resolved.confidence,
       corrected_text: parts.corrected,
       explanation: parts.explanation,
+      ...(parts.issues === undefined
+        ? {}
+        : { suggestions: suggestionsFor(parts.original, parts.corrected, parts.issues) }),
       confidence: parts.confidence,
       warnings,
       changes: parts.changes ?? diffWords(parts.original, parts.corrected),
@@ -817,6 +825,45 @@ function explainFromDiff(
     });
   }
   return items;
+}
+
+/**
+ * Findings that were not applied (several candidates, or held back) and whose words are still
+ * in the result, so the user sees "vu → vus / vues" instead of nothing.
+ */
+function suggestionsFor(
+  original: string,
+  corrected: string,
+  issues: readonly GrammarIssue[],
+): Suggestion[] {
+  const suggestions: Suggestion[] = [];
+  for (const issue of issues) {
+    if (issue.replacements.length === 0 || isApplicable(issue)) continue;
+    const fragment = original.slice(issue.offset, issue.offset + issue.length);
+    if (fragment.trim() === "" || !containsWord(corrected, fragment)) continue;
+    if (suggestions.some((s) => s.original === fragment)) continue;
+    suggestions.push({
+      original: fragment,
+      replacements: issue.replacements.slice(0, 3),
+      reason: issue.message,
+      category: issue.category,
+      source: issue.source,
+    });
+    if (suggestions.length === 5) break;
+  }
+  return suggestions;
+}
+
+/** Whether `fragment` occurs in `text` not glued to other letters or digits. */
+function containsWord(text: string, fragment: string): boolean {
+  const word = /[\p{L}\p{N}]/u;
+  for (let i = text.indexOf(fragment); i !== -1; i = text.indexOf(fragment, i + 1)) {
+    const before = text[i - 1];
+    const after = text[i + fragment.length];
+    if ((before === undefined || !word.test(before)) && (after === undefined || !word.test(after)))
+      return true;
+  }
+  return false;
 }
 
 function toExplanation({

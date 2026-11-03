@@ -346,5 +346,8 @@ supported it as Layer 2 (ADR-007) without a local server.
 - Real-text precision: on this repository's English docs, 0 automatic LanguageTool fixes;
   on typical errors it fixes "I has a apple" → "I have an apple", "tu vien" → "tu viens",
   "je les ai vu" → "vus", "a la gare" → "à la gare".
-- The first correction after starting may not include LanguageTool yet.
+- The first correction after starting cannot include LanguageTool: the panel shows it at once,
+  then checks the same text again by itself when the server is ready (about 20 s).
+- Findings that need a human decision ("vu" → vus | vues) are returned as `suggestions` on
+  the result; the panel lists them under "To check" and applies the candidate the user picks.
 - Typely does not download LanguageTool itself yet; an in-app installer is future work.

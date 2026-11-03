@@ -14,6 +14,7 @@
     "allow-panel-hide",
     "allow-panel-replace",
     "allow-panel-copy",
-    "allow-spell-check"
+    "allow-spell-check",
+    "allow-languagetool-status"
   ]
 }

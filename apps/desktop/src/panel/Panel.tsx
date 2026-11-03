@@ -5,6 +5,7 @@ import { ResultView } from "../components/ResultView.tsx";
 import { modeFor, useCorrection, useSettings } from "../correction.ts";
 import {
   type CapturePayload,
+  languageToolStatus,
   onCapture,
   onPanelHidden,
   panelCopy,
@@ -26,7 +27,15 @@ export const TRANSLATE_TARGETS = [
 export function Panel() {
   const { view } = useSettings();
   const settings = view?.settings;
-  const { state, run, cancel, reset } = useCorrection(settings);
+  const { state, run: runEngine, cancel, reset, choose } = useCorrection(settings);
+  const lastRun = useRef<Parameters<typeof runEngine>>(undefined);
+  const run = useCallback(
+    (...args: Parameters<typeof runEngine>) => {
+      lastRun.current = args;
+      return runEngine(...args);
+    },
+    [runEngine],
+  );
   const [capture, setCapture] = useState<CapturePayload>();
   const [pasted, setPasted] = useState("");
   const [operation, setOperation] = useState<Operation>("fix");
@@ -60,6 +69,36 @@ export function Panel() {
 
   const text = capture?.text ?? pasted;
   const result = state.status === "done" ? state.result : undefined;
+
+  // The grammar checker was still starting (first use after it stopped): check the same text
+  // again as soon as it is ready, unless another run has replaced this result meanwhile.
+  useEffect(() => {
+    // Only the "starting" answer, which a ready checker never gives, so this cannot loop.
+    const starting = result?.warnings.some(
+      (w) => w.code === "languagetool_unavailable" && w.message.includes("is starting"),
+    );
+    if (!starting) return;
+    const args = lastRun.current;
+    if (args === undefined) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = Date.now() + 90_000;
+    const poll = () => {
+      languageToolStatus()
+        .then((status) => {
+          if (!active) return;
+          if (status.state === "ready") void runEngine(...args);
+          else if (status.state === "starting" && Date.now() < deadline)
+            timer = setTimeout(poll, 1000);
+        })
+        .catch(() => undefined);
+    };
+    poll();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [result, runEngine]);
   const changed = state.status === "done" && state.result.corrected_text !== state.original;
 
   const start = useCallback(
@@ -203,7 +242,7 @@ export function Panel() {
             Experimental with a small local model ({head.model}); results may be unreliable.
           </p>
         )}
-        <ResultView state={state} />
+        <ResultView state={state} onChoose={choose} />
         {deeper !== undefined && (
           <p className="deeper">
             <button type="button" onClick={() => void run("fix", text, target, deeper.id)}>

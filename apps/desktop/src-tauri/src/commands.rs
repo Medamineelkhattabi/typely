@@ -129,7 +129,8 @@ async fn run_request(
         secret_for(stored, &endpoint.origin())
     };
     // The managed grammar server is never waited for: until it is ready, the engine goes on
-    // with its other layers and reports that the grammar checker is starting.
+    // with its other layers and reports that the grammar checker is starting; the panel then
+    // checks the text again once it is ready.
     if endpoint_id == crate::endpoints::LANGUAGETOOL_ENDPOINT_ID
         && uses_managed_languagetool(&endpoint)
     {
@@ -137,7 +138,7 @@ async fn run_request(
             state.languagetool.ensure_started();
             return Err(TransportError::new(
                 ErrorKind::Network,
-                "The grammar checker is starting; it will be used from the next correction.",
+                "The grammar checker is starting; your text will be checked again when it is ready.",
             ));
         }
         state.languagetool.touch();

@@ -421,3 +421,15 @@ td {
 .loading {
   padding: 24px;
 }
+
+.suggestions ul {
+  padding-left: 18px;
+  margin: 4px 0 8px;
+  font-size: 13px;
+}
+.suggestions li .chip {
+  margin-right: 4px;
+}
+.suggestions .reason {
+  color: var(--muted);
+}

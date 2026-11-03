@@ -70,12 +70,24 @@ export const ResultMetaSchema = z.strictObject({
 });
 export type ResultMeta = z.infer<typeof ResultMetaSchema>;
 
+/** A possible error that was not changed because it needs a human decision ("vu" → vus | vues). */
+export const SuggestionSchema = z.strictObject({
+  original: z.string(),
+  replacements: z.array(z.string()).min(1),
+  reason: z.string(),
+  category: IssueCategorySchema,
+  source: FindingSourceSchema,
+});
+export type Suggestion = z.infer<typeof SuggestionSchema>;
+
 export const CorrectionResultSchema = z.strictObject({
   operation: OperationSchema,
   detected_language: LanguageCodeSchema,
   language_confidence: z.number().min(0).max(1),
   corrected_text: z.string(),
   explanation: z.array(ExplanationItemSchema),
+  /** Corrections only: possible errors left in the text for the user to decide. */
+  suggestions: z.array(SuggestionSchema).optional(),
   confidence: z.number().min(0).max(1),
   warnings: z.array(ResultWarningSchema),
   changes: z.array(DiffSegmentSchema),
