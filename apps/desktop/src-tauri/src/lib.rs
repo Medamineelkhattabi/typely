@@ -3,6 +3,7 @@
 //! all interaction with other applications (selection capture, paste).
 
 mod commands;
+mod diag;
 mod endpoints;
 mod ollama;
 mod panel;

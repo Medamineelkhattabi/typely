@@ -82,6 +82,14 @@ button.primary {
   color: var(--accent-fg);
 }
 
+/* A disabled primary button must not look clickable. */
+button.primary:disabled {
+  background: var(--bg-soft);
+  border-color: var(--border);
+  color: var(--muted);
+  opacity: 1;
+}
+
 button.icon {
   border: none;
   background: none;
@@ -276,6 +284,12 @@ pre {
 }
 .paste textarea {
   min-height: 80px;
+}
+.action-error {
+  margin: 0;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
 }
 .panel footer {
   display: flex;

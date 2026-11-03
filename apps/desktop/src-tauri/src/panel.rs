@@ -98,6 +98,25 @@ pub fn on_shortcut(app: &AppHandle) {
     std::thread::spawn(move || {
         let state = app.state::<AppState>();
         let result = platform::capture_selection();
+        crate::diag::log(
+            &app,
+            &match &result {
+                Ok(c) => format!(
+                    "capture ok method={:?} app={} chars={}",
+                    c.method,
+                    c.target.process_name.as_deref().unwrap_or("?"),
+                    c.text.chars().count()
+                ),
+                Err((e, t)) => format!(
+                    "capture {} app={}: {}",
+                    e.code(),
+                    t.as_ref()
+                        .and_then(|t| t.process_name.as_deref())
+                        .unwrap_or("?"),
+                    e.message()
+                ),
+            },
+        );
         if let Err((CaptureError::OwnWindow, _)) = result {
             // The shortcut was pressed in Typely itself: nothing to capture.
             state.panel.busy.store(false, Ordering::SeqCst);
@@ -195,12 +214,30 @@ pub async fn panel_replace(
             _ => None,
         }
     }
-    .ok_or_else(|| "This selection can no longer be replaced. Use Copy instead.".to_owned())?;
+    .ok_or_else(|| "This selection can no longer be replaced. Use Copy instead.".to_owned());
+    let target = match target {
+        Ok(t) => t,
+        Err(e) => {
+            crate::diag::log(&app, &format!("replace refused: {e}"));
+            return Err(e);
+        }
+    };
+    let process = target
+        .process_name
+        .clone()
+        .unwrap_or_else(|| "?".to_owned());
     hide(&app);
     let result =
         tauri::async_runtime::spawn_blocking(move || platform::replace_selection(&target, &text))
             .await
             .map_err(|e| e.to_string())?;
+    crate::diag::log(
+        &app,
+        &match &result {
+            Ok(()) => format!("replace ok app={process}"),
+            Err(e) => format!("replace failed app={process}: {e}"),
+        },
+    );
     if result.is_err()
         && let Some(panel) = app.get_webview_window(PANEL_LABEL)
     {

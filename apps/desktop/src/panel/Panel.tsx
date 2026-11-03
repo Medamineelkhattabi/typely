@@ -193,8 +193,13 @@ export function Panel() {
           </p>
         )}
         <ResultView state={state} />
-        {actionError !== undefined && <p className="error">{actionError}</p>}
       </main>
+
+      {actionError !== undefined && (
+        <p className="error action-error" role="alert">
+          {actionError}
+        </p>
+      )}
 
       <footer>
         {state.status === "running" ? (
@@ -221,7 +226,7 @@ export function Panel() {
                 type="button"
                 className="primary"
                 disabled={!changed}
-                title="Ctrl+Enter"
+                title={changed ? "Ctrl+Enter" : "Nothing to replace: the text needs no changes"}
                 onClick={replace}
               >
                 Replace

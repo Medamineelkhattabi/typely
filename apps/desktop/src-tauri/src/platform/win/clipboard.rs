@@ -200,15 +200,15 @@ pub fn snapshot(owner: &Owner) -> Result<Snapshot, String> {
             | CF_DSPENHMETAFILE
             | 0x0200..=0x03FF => snapshot.unrestorable = true,
             _ => {
+                // A format that cannot be read (delayed rendering whose owner has exited) is
+                // already lost for every app, so skipping it loses nothing.
                 // SAFETY: the clipboard is open; other standard and registered formats are
                 // HGLOBAL-based.
-                match unsafe { GetClipboardData(format) }
+                if let Some(bytes) = unsafe { GetClipboardData(format) }
                     .ok()
                     .and_then(read_global)
                 {
-                    Some(bytes) => snapshot.items.push(Saved::Global(format, bytes)),
-                    // Delayed rendering that failed: the content is gone either way.
-                    None => snapshot.unrestorable = true,
+                    snapshot.items.push(Saved::Global(format, bytes));
                 }
             }
         }
