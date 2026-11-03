@@ -36,7 +36,7 @@ An item is only checked when it is implemented **and** tested; "compiles" is not
 
 Prerequisite: Rust toolchain + MSVC Build Tools (see setup.md). Desktop app: [apps/desktop](../../apps/desktop).
 
-- [~] Tauri 2 scaffold (`apps/desktop`), Cargo workspace, CI build — scaffold and workspace done; `npm run check` runs fmt, clippy and cargo test; no CI yet
+- [~] Tauri 2 scaffold (`apps/desktop`), Cargo workspace, CI build — scaffold and workspace done; `npm run check` runs fmt, clippy and cargo test; GitHub Actions runs it on Windows for every push and pull request
 - [x] Rust: settings store, keyring secrets, `provider_request` command (reqwest), auth-scheme contract test (ADR-017)
 - [~] Rust: single instance, tray, autostart toggle — single instance and tray implemented, not manually tested; no autostart toggle yet
 - [~] Global shortcut (configurable, conflict detection) — works in Notepad; invalid shortcuts refused; a shortcut taken by another app is reported but that case is not manually tested

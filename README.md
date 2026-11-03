@@ -1,5 +1,7 @@
 # TYPELY
 
+[![CI](https://github.com/Medamineelkhattabi/typely/actions/workflows/ci.yml/badge.svg)](https://github.com/Medamineelkhattabi/typely/actions/workflows/ci.yml)
+
 An AI-powered universal writing assistant for Windows and Chromium browsers. Typely
 corrects, rewrites and translates text wherever you type, without copying it into a
 separate app.
