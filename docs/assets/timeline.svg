@@ -32,22 +32,22 @@
 
   <g class="dot d1">
     <circle cx="60" cy="98" r="9" fill="#2fc48d"/>
-    <text x="60" y="76" class="ui label" font-size="13" text-anchor="middle">⌨ Shortcut</text>
+    <text x="60" y="76" class="ui label" font-size="13" text-anchor="middle">Shortcut</text>
     <text x="60" y="130" class="ui muted" font-size="12" text-anchor="middle">0 ms</text>
   </g>
   <g class="dot d2">
     <circle cx="170" cy="98" r="9" fill="#2fc48d"/>
-    <text x="170" y="76" class="ui label" font-size="13" text-anchor="middle">⚡ Local fixes</text>
+    <text x="170" y="76" class="ui label" font-size="13" text-anchor="middle">Local fixes</text>
     <text x="170" y="130" class="ui muted" font-size="12" text-anchor="middle">~30 ms</text>
   </g>
   <g class="dot d3">
     <circle cx="380" cy="98" r="9" fill="#5b8cff"/>
-    <text x="380" y="76" class="ui label" font-size="13" text-anchor="middle">✍ First AI words</text>
+    <text x="380" y="76" class="ui label" font-size="13" text-anchor="middle">First AI words</text>
     <text x="380" y="130" class="ui muted" font-size="12" text-anchor="middle">~0.5 s</text>
   </g>
   <g class="dot d4">
     <circle cx="840" cy="98" r="9" fill="#9b6bff"/>
-    <text x="840" y="76" class="ui label" font-size="13" text-anchor="end">✓ Final result · Replace</text>
+    <text x="840" y="76" class="ui label" font-size="13" text-anchor="end">Final result · Replace</text>
     <text x="840" y="130" class="ui muted" font-size="12" text-anchor="end">~1.4–2 s</text>
   </g>
   <text x="450" y="176" class="ui muted" font-size="12" text-anchor="middle">Nothing is loaded at startup or while you type · the model is released after 5 idle minutes</text>

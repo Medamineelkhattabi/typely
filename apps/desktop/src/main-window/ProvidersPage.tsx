@@ -341,7 +341,11 @@ function AddProvider({ settings, update }: { settings: AppSettings; update: Upda
       </label>
       <label className="field inline">
         <span>Model</span>
-        <input value={model} onChange={(e) => setModel(e.target.value)} />
+        <input
+          value={model}
+          placeholder="Model id from the provider's documentation"
+          onChange={(e) => setModel(e.target.value)}
+        />
       </label>
       <label className="field inline">
         <span>Base URL</span>

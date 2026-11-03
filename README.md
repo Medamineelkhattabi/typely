@@ -8,18 +8,18 @@
 
 **The writing assistant that works in every app and keeps your text on your computer.**
 
-[![Platform](https://img.shields.io/badge/Windows-11-0078D4?logo=windows&logoColor=white)](#-get-started-in-3-steps)
+[![Platform](https://img.shields.io/badge/Windows-11-0078D4?logo=windows&logoColor=white)](#get-started-in-3-steps)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?logo=tauri&logoColor=white)](https://tauri.app)
 [![Rust](https://img.shields.io/badge/Rust-stable-B7410E?logo=rust&logoColor=white)](apps/desktop/src-tauri)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](packages)
-[![Local first](https://img.shields.io/badge/privacy-local--first-2ea44f)](#-private-by-design)
-[![Tests](https://img.shields.io/badge/tests-221%20passing-2ea44f)](#-built-to-last)
+[![Local first](https://img.shields.io/badge/privacy-local--first-2ea44f)](#private-by-design)
+[![Tests](https://img.shields.io/badge/tests-221%20passing-2ea44f)](#built-to-last)
 [![Status](https://img.shields.io/badge/status-desktop%20MVP-orange)](docs/development/roadmap.md)
 [![License](https://img.shields.io/badge/license-proprietary-555)](LICENSE)
 
-[**See it**](#-see-it-in-action) · [**Languages**](#-fluent-in-english-french-and-arabic) ·
-[**Speed**](#-fast-enough-to-feel-instant) · [**Privacy**](#-private-by-design) ·
-[**Get started**](#-get-started-in-3-steps) · [**FAQ**](#-faq)
+[**See it**](#see-it-in-action) · [**Languages**](#fluent-in-english-french-and-arabic) ·
+[**Speed**](#fast-enough-to-feel-instant) · [**Privacy**](#private-by-design) ·
+[**Get started**](#get-started-in-3-steps) · [**FAQ**](#faq)
 
 <br />
 
@@ -34,13 +34,15 @@
 
 ---
 
-## ✨ Why people pick Typely
+## Why people pick Typely
 
 <table>
 <tr>
 <td width="33%" valign="top">
 
-### 🔒 Your words stay yours
+<img src="docs/assets/icons/lock.svg" width="28" height="28" alt="" />
+
+### Your words stay yours
 
 Runs **on your PC** by default: built-in rules, a bundled dictionary and an optional local
 AI model through [Ollama](https://ollama.com). Cloud AI stays **off** until you turn it on
@@ -49,7 +51,9 @@ AI model through [Ollama](https://ollama.com). Cloud AI stays **off** until you 
 </td>
 <td width="33%" valign="top">
 
-### ⚡ Instant, then smart
+<img src="docs/assets/icons/bolt.svg" width="28" height="28" alt="" />
+
+### Instant, then smart
 
 Typos are fixed **in about 30 ms**, before any AI is involved. A local model then polishes
 the text, **streaming as it writes**, in about **2 seconds** for a short message. Nothing
@@ -58,7 +62,9 @@ loads at startup or while you type.
 </td>
 <td width="33%" valign="top">
 
-### 🌍 Everywhere you type
+<img src="docs/assets/icons/globe.svg" width="28" height="28" alt="" />
+
+### Everywhere you type
 
 One shortcut for **any app**: editors, browsers, chat boxes, web apps. Typely reads your
 selection, pastes the result back **with undo intact**, and restores your clipboard.
@@ -68,14 +74,14 @@ selection, pastes the result back **with undo intact**, and restores your clipbo
 </tr>
 </table>
 
-## 🎬 See it in action
+## See it in action
 
 Eight actions, one panel. Every example below is a **real output** from Typely with free
 local models (gemma3:1b for Correct, gemma3:4b for the rest), not a mock-up. Click one to
 open it.
 
 <details open>
-<summary><b>✅ Correct</b>: typos, grammar and punctuation, keeping your words</summary>
+<summary><img src="docs/assets/icons/check.svg" width="16" height="16" alt="" />&nbsp; <b>Correct</b>: typos, grammar and punctuation, keeping your words</summary>
 
 | You wrote                                                            | Typely wrote                                                       |
 | -------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -84,7 +90,7 @@ open it.
 </details>
 
 <details>
-<summary><b>💼 Professional</b>: polished tone for e-mails and reports</summary>
+<summary><img src="docs/assets/icons/briefcase.svg" width="16" height="16" alt="" />&nbsp; <b>Professional</b>: polished tone for e-mails and reports</summary>
 
 | You wrote                                                                                                 | Typely wrote                                                                                        |
 | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -97,7 +103,7 @@ by the local dictionary before the model even saw it.
 </details>
 
 <details>
-<summary><b>✂️ Make concise</b>: shorter, without losing the point</summary>
+<summary><img src="docs/assets/icons/scissors.svg" width="16" height="16" alt="" />&nbsp; <b>Make concise</b>: shorter, without losing the point</summary>
 
 | You wrote                                                                                                                                         | Typely wrote                                                                       |
 | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -106,7 +112,7 @@ by the local dictionary before the model even saw it.
 </details>
 
 <details>
-<summary><b>😊 Friendly</b>: warmer, more human</summary>
+<summary><img src="docs/assets/icons/smile.svg" width="16" height="16" alt="" />&nbsp; <b>Friendly</b>: warmer, more human</summary>
 
 | You wrote                                                                       | Typely wrote                                                                                                                                     |
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -115,7 +121,7 @@ by the local dictionary before the model even saw it.
 </details>
 
 <details>
-<summary><b>🌐 Translate</b>: English, French, Arabic, Spanish, German</summary>
+<summary><img src="docs/assets/icons/translate.svg" width="16" height="16" alt="" />&nbsp; <b>Translate</b>: English, French, Arabic, Spanish, German</summary>
 
 | You wrote                                                 | Typely wrote                                                     |
 | --------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -125,7 +131,7 @@ by the local dictionary before the model even saw it.
 </details>
 
 <details>
-<summary><b>🤖 Improve prompt</b>: clearer requests for AI assistants</summary>
+<summary><img src="docs/assets/icons/prompt.svg" width="16" height="16" alt="" />&nbsp; <b>Improve prompt</b>: clearer requests for AI assistants</summary>
 
 | You wrote                                         | Typely wrote                                                 |
 | ------------------------------------------------- | ------------------------------------------------------------ |
@@ -133,11 +139,11 @@ by the local dictionary before the model even saw it.
 
 </details>
 
-Also in the panel: **✍️ Rewrite** (smoother, same meaning) and **💡 Improve clarity**.
+Also in the panel: **Rewrite** (smoother, same meaning) and **Improve clarity**.
 Every result shows a **word-level diff**, **plain-language explanations**, and a
 **warning** if the AI changed the language, dropped a link or a number, or went off-task.
 
-## 🌍 Fluent in English, French and Arabic
+## Fluent in English, French and Arabic
 
 <div align="center">
 <img src="docs/assets/languages.svg" width="860" alt="Three real corrections: English typos and punctuation, French accents (à, c'était, intéressant), and Arabic punctuation and hamza (الملف؟، أرجو، لأن)" />
@@ -146,14 +152,14 @@ Every result shows a **word-level diff**, **plain-language explanations**, and a
 Language is detected automatically, even for mixed text. French typography rules, Arabic
 punctuation (`،` `؛` `؟`) and right-to-left text are handled natively.
 
-## ⚡ Fast enough to feel instant
+## Fast enough to feel instant
 
 <div align="center">
 <img src="docs/assets/timeline.svg" width="860" alt="Timeline: shortcut at 0 ms, local fixes at about 30 ms, first AI words after about 0.5 s, final result in about 1.4 to 2 s" />
 </div>
 
 <details>
-<summary><b>📊 The measurements</b> (Intel i7-1355U laptop, 32 GB, integrated graphics)</summary>
+<summary><b>The measurements</b> (Intel i7-1355U laptop, 32 GB, integrated graphics)</summary>
 
 | Step                                         | Time / size                                               |
 | -------------------------------------------- | --------------------------------------------------------- |
@@ -169,7 +175,7 @@ Sources: [benchmark](docs/development/ollama-benchmark.md) ·
 
 </details>
 
-## 🔍 Under the hood
+## Under the hood
 
 ```mermaid
 sequenceDiagram
@@ -204,7 +210,7 @@ sequenceDiagram
    with automatic retry and fallback between providers.
 
 <details>
-<summary><b>🏗️ Architecture diagram</b></summary>
+<summary><b>Architecture diagram</b></summary>
 
 One TypeScript engine shared by every surface; a small Rust core as the trusted executor.
 
@@ -238,26 +244,26 @@ the full design is in [architecture.md](docs/architecture/architecture.md).
 
 </details>
 
-## 🔐 Private by design
+## Private by design
 
 > [!IMPORTANT]
 > By default **nothing leaves your computer**. Cloud AI needs two explicit switches: the
 > global "Allow cloud processing" **and** your approval of that specific provider. The
 > engine checks both before any request, so a UI bug can't send your text by accident.
 
-| Guarantee                              | How it's enforced                                                                                                 |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 🔐 API keys can't leak to the UI       | Kept in the **Windows Credential Manager**; the UI can store a key but never read it back                         |
-| 🎯 A key can't be redirected           | Each key is bound to the server it was entered for, never sent over plain HTTP to a remote host                   |
-| 🙈 Password fields are never read      | Checked through UI Automation (`IsPassword`); capture is refused                                                  |
-| 📋 Your clipboard is respected         | Saved and restored around every copy and paste; Typely's temporary content is marked to stay out of Win+V history |
-| 📍 Text lands in the right place       | Replace re-focuses the original window **and field**, verifies it, or pastes nothing                              |
-| 🧱 Prompt injection can't hijack a fix | Off-task AI output ("ignore your instructions and…") is discarded for the local result                            |
-| 📴 No telemetry                        | Diagnostics stay in a local log, and never contain your text                                                      |
+| Guarantee                           | How it's enforced                                                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| API keys can't leak to the UI       | Kept in the **Windows Credential Manager**; the UI can store a key but never read it back                         |
+| A key can't be redirected           | Each key is bound to the server it was entered for, never sent over plain HTTP to a remote host                   |
+| Password fields are never read      | Checked through UI Automation (`IsPassword`); capture is refused                                                  |
+| Your clipboard is respected         | Saved and restored around every copy and paste; Typely's temporary content is marked to stay out of Win+V history |
+| Text lands in the right place       | Replace re-focuses the original window **and field**, verifies it, or pastes nothing                              |
+| Prompt injection can't hijack a fix | Off-task AI output ("ignore your instructions and…") is discarded for the local result                            |
+| No telemetry                        | Diagnostics stay in a local log, and never contain your text                                                      |
 
 The full analysis is in the [threat model](docs/security/threat-model.md).
 
-## ⌨️ Shortcuts
+## Shortcuts
 
 | Keys                                              | Action                                          |
 | ------------------------------------------------- | ----------------------------------------------- |
@@ -266,7 +272,7 @@ The full analysis is in the [threat model](docs/security/threat-model.md).
 | <kbd>Esc</kbd>                                    | Cancel the request, or close the panel          |
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd> (in your app)        | Undo a replacement                              |
 
-## 🚀 Get started in 3 steps
+## Get started in 3 steps
 
 **1. Install the tools** (Windows 11): [Node.js](https://nodejs.org) ≥ 24, plus the
 [Rust toolchain and MSVC Build Tools](docs/development/setup.md#toolchain-requirements-for-phase-2).
@@ -290,7 +296,7 @@ npm run tauri dev
 > for rewrites and translation.
 
 <details>
-<summary><b>📦 Build the release executable</b></summary>
+<summary><b>Build the release executable</b></summary>
 
 ```bash
 npm run tauri build
@@ -301,7 +307,7 @@ The result is `target/release/typely.exe` (about 5 MB). There's no installer yet
 </details>
 
 <details>
-<summary><b>💻 Try the engine from a terminal</b></summary>
+<summary><b>Try the engine from a terminal</b></summary>
 
 Local rules and dictionary only:
 
@@ -327,7 +333,7 @@ Options: `--mode local|ai|hybrid`, `--lang fr`, `--json`, `--check`. See
 </details>
 
 <details>
-<summary><b>🧩 Use the engine in your own code</b></summary>
+<summary><b>Use the engine in your own code</b></summary>
 
 ```ts
 import { CorrectionEngine, endpointsFromSettings } from "@typely/correction-engine";
@@ -357,19 +363,19 @@ app uses `TauriTransport`, which hands every request to Rust.
 
 </details>
 
-## ✅ Tested where it matters
+## Tested where it matters
 
 | Where                              | Reads the selection via | Replace |
 | ---------------------------------- | ----------------------- | ------- |
-| Notepad (Windows 11)               | UI Automation           | ✅      |
-| Brave, text input                  | UI Automation           | ✅      |
-| A web page inside an Electron app  | UI Automation           | ✅      |
-| Edge, Chrome, Word, Outlook, Teams | Not tested yet          | ⏳      |
+| Notepad (Windows 11)               | UI Automation           |         |
+| Brave, text input                  | UI Automation           |         |
+| A web page inside an Electron app  | UI Automation           |         |
+| Edge, Chrome, Word, Outlook, Teams | Not tested yet          |         |
 
-Every ✅ comes from a real run, logged in the
+Every verified entry comes from a real run, logged in the
 [desktop test log](docs/development/desktop-testing.md).
 
-## 🧪 Built to last
+## Built to last
 
 - **221 automated tests**: 195 TypeScript (Vitest) and 26 Rust, plus contract tests that keep
   the TypeScript and Rust sides in sync.
@@ -382,7 +388,7 @@ Every ✅ comes from a real run, logged in the
 npm run check
 ```
 
-## 🗺️ Roadmap
+## Roadmap
 
 - [x] **Shared engine**: 8 actions, fr/en/ar, rules, spell checking, guards, 5 AI providers
 - [x] **Local AI**: two-model Ollama setup, warm window, streaming, prompt-injection defence
@@ -393,7 +399,7 @@ npm run check
 
 The full checklist is in [roadmap.md](docs/development/roadmap.md).
 
-## ❓ FAQ
+## FAQ
 
 <details>
 <summary><b>Is my text sent anywhere?</b></summary>
@@ -448,7 +454,7 @@ or the AI answer is discarded for the local result. Nothing is replaced until yo
 
 </details>
 
-## 📁 Repository layout
+## Repository layout
 
 ```
 apps/
@@ -462,7 +468,7 @@ scripts/               developer CLI, benchmarks, word-list builder
 docs/                  architecture, decisions, security, roadmap
 ```
 
-## 🤝 Contributing and security
+## Contributing and security
 
 Typely is proprietary software ([LICENSE](LICENSE)). The source is public to read, and
 contributions are welcome under the terms in [CONTRIBUTING.md](CONTRIBUTING.md). Please
@@ -472,7 +478,7 @@ report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md).
 
 <div align="center">
 
-**Typely**: fix it where you write it. ✍️
+**Typely**: fix it where you write it.
 
 © 2026 Mohamed Amine EL Khattabi. All rights reserved. Proprietary software; see
 [LICENSE](LICENSE). Third-party components: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
