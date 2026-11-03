@@ -5,15 +5,21 @@ import { ResultView } from "../components/ResultView.tsx";
 import { modeFor, useCorrection } from "../correction.ts";
 import { panelCopy } from "../ipc.ts";
 import { TRANSLATE_TARGETS } from "../panel/Panel.tsx";
-import { type AppSettings, usableProviders } from "../settings.ts";
+import {
+  type AppSettings,
+  NEEDS_AI_HINT,
+  runnableOperation,
+  usableProviders,
+} from "../settings.ts";
 
 /** Try the engine without the shortcut. Text typed here is not stored. */
 export function AssistantPage({ settings }: { settings: AppSettings }) {
   const { state, run, cancel, choose } = useCorrection(settings);
   const [text, setText] = useState("");
-  const [operation, setOperation] = useState<Operation>(settings.desktop.default_operation);
+  const [chosen, setOperation] = useState<Operation>(settings.desktop.default_operation);
   const [target, setTarget] = useState(settings.desktop.translate_target);
   const localOnly = modeFor(settings) === "local";
+  const operation = runnableOperation(chosen, localOnly);
   const providers = usableProviders(settings);
 
   return (
@@ -38,7 +44,12 @@ export function AssistantPage({ settings }: { settings: AppSettings }) {
           onChange={(e) => setOperation(e.target.value as Operation)}
         >
           {OPERATIONS.map((op) => (
-            <option key={op} value={op} disabled={localOnly && op !== "fix"}>
+            <option
+              key={op}
+              value={op}
+              disabled={localOnly && op !== "fix"}
+              title={localOnly && op !== "fix" ? NEEDS_AI_HINT : undefined}
+            >
               {getOperation(op).label}
             </option>
           ))}
@@ -76,6 +87,12 @@ export function AssistantPage({ settings }: { settings: AppSettings }) {
           </button>
         )}
       </div>
+      {localOnly && (
+        <p className="muted small">
+          Only Correct works with local rules. Rewrite, Translate and the other actions need an AI
+          model: set up Local AI or add a provider.
+        </p>
+      )}
       <div className="result">
         <ResultView state={state} onChoose={choose} />
       </div>

@@ -1,8 +1,15 @@
 import { getOperation } from "@typely/correction-engine";
 import { CORRECTION_MODES, type CorrectionMode, OPERATIONS, type Operation } from "@typely/schemas";
 import { useState } from "react";
+import { modeFor } from "../correction.ts";
 import { TRANSLATE_TARGETS } from "../panel/Panel.tsx";
-import { type AppSettings, DEFAULT_SHORTCUT, isCloudProvider } from "../settings.ts";
+import {
+  type AppSettings,
+  DEFAULT_SHORTCUT,
+  isCloudProvider,
+  NEEDS_AI_HINT,
+  runnableOperation,
+} from "../settings.ts";
 import type { UpdateSettings } from "./App.tsx";
 
 interface PageProps {
@@ -12,6 +19,7 @@ interface PageProps {
 
 export function GeneralPage({ settings, update }: PageProps) {
   const [shortcut, setShortcut] = useState(settings.desktop.shortcut);
+  const localOnly = modeFor(settings) === "local";
   return (
     <>
       <h2>General</h2>
@@ -42,7 +50,7 @@ export function GeneralPage({ settings, update }: PageProps) {
       <label className="field">
         <span>When the panel opens</span>
         <select
-          value={settings.desktop.default_operation}
+          value={runnableOperation(settings.desktop.default_operation, localOnly)}
           onChange={(e) =>
             update((s) => {
               s.desktop.default_operation = e.target.value as Operation;
@@ -50,11 +58,22 @@ export function GeneralPage({ settings, update }: PageProps) {
           }
         >
           {OPERATIONS.map((op) => (
-            <option key={op} value={op}>
+            <option
+              key={op}
+              value={op}
+              disabled={localOnly && op !== "fix"}
+              title={localOnly && op !== "fix" ? NEEDS_AI_HINT : undefined}
+            >
               {getOperation(op).label}
             </option>
           ))}
         </select>
+        {localOnly && (
+          <small className="muted">
+            Without an AI model the panel always corrects. Set up Local AI or add a provider to
+            choose another action.
+          </small>
+        )}
       </label>
       <label className="field">
         <span>Translate to</span>

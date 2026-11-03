@@ -15,7 +15,7 @@ import {
   panelReplace,
 } from "../ipc.ts";
 import { headProvider, isSmallModel } from "../local-setup.ts";
-import { usableProviders } from "../settings.ts";
+import { NEEDS_AI_HINT, runnableOperation, usableProviders } from "../settings.ts";
 
 export const TRANSLATE_TARGETS = [
   ["en", "English"],
@@ -62,7 +62,8 @@ export function Panel() {
     reset();
     setActionError(undefined);
     setPasted("");
-    const op = settings.desktop.default_operation;
+    // Local mode only corrects; a saved default it cannot run would fail on every capture.
+    const op = runnableOperation(settings.desktop.default_operation, modeFor(settings) === "local");
     setOperation(op);
     setTarget(settings.desktop.translate_target);
     if (capture.text !== undefined) void run(op, capture.text, settings.desktop.translate_target);
@@ -210,7 +211,7 @@ export function Panel() {
             key={op}
             className={op === operation ? "chip active" : "chip"}
             disabled={password || (localOnly && op !== "fix")}
-            title={localOnly && op !== "fix" ? "Needs an AI model (see settings)" : undefined}
+            title={localOnly && op !== "fix" ? NEEDS_AI_HINT : undefined}
             onClick={() => start(op)}
           >
             {getOperation(op).label}
