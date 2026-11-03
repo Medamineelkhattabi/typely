@@ -1,0 +1,18 @@
+{
+  "auth_schemes": {
+    "openai": { "type": "bearer", "optional": false },
+    "openai_compatible": { "type": "bearer", "optional": true },
+    "anthropic": { "type": "header", "name": "x-api-key", "optional": false },
+    "gemini": { "type": "header", "name": "x-goog-api-key", "optional": false },
+    "ollama": { "type": "none" }
+  },
+  "default_base_urls": {
+    "openai": "https://api.openai.com/v1",
+    "openai_compatible": null,
+    "anthropic": "https://api.anthropic.com",
+    "gemini": "https://generativelanguage.googleapis.com/v1beta",
+    "ollama": "http://localhost:11434"
+  },
+  "languagetool_auth": { "type": "form_field", "name": "apiKey", "optional": true },
+  "secret_header_names": ["authorization", "x-api-key", "x-goog-api-key", "api-key"]
+}

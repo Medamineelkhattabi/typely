@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "engine": {
+    "default_mode": "hybrid",
+    "preferred_language": "auto",
+    "providers": [
+      {
+        "id": "local-fast",
+        "kind": "ollama",
+        "label": "Ollama · fast",
+        "model": "gemma3:1b",
+        "enabled": true,
+        "consent_granted": false
+      },
+      {
+        "id": "local-quality",
+        "kind": "ollama",
+        "label": "Ollama · quality",
+        "model": "gemma3:4b",
+        "enabled": true,
+        "consent_granted": false,
+        "timeout_ms": 90000,
+        "keep_alive_seconds": 0
+      },
+      {
+        "id": "anthropic",
+        "kind": "anthropic",
+        "label": "Anthropic",
+        "model": "anthropic-model",
+        "enabled": false,
+        "consent_granted": true,
+        "temperature": 0.2,
+        "max_output_tokens": 2048,
+        "json_mode": "json_schema",
+        "thinking": false,
+        "prompt_profile": "full",
+        "output_format": "json"
+      },
+      {
+        "id": "lan-server",
+        "kind": "openai_compatible",
+        "label": "LAN server",
+        "base_url": "https://llm.example.internal/v1",
+        "model": "qwen",
+        "enabled": false,
+        "consent_granted": false
+      }
+    ],
+    "provider_order": ["local-quality", "local-fast"],
+    "operation_providers": { "fix": "local-fast" },
+    "languagetool": {
+      "enabled": false,
+      "base_url": "http://localhost:8081",
+      "consent_granted": false
+    },
+    "disabled_rules": ["FR_NBSP_BEFORE_PUNCTUATION"],
+    "privacy": {
+      "cloud_processing_allowed": false,
+      "store_history": false,
+      "blocked_sites": [],
+      "allowed_sites": [],
+      "disabled_apps": []
+    },
+    "limits": { "max_input_chars": 20000, "request_timeout_ms": 45000, "max_retries": 1 }
+  },
+  "desktop": {
+    "shortcut": "Ctrl+Shift+Space",
+    "default_operation": "fix",
+    "translate_target": "en"
+  }
+}
