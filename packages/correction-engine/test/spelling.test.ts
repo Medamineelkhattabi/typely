@@ -205,6 +205,86 @@ describe("engine integration", () => {
     expect(result.corrected_text).toBe("A file impressive and dynamic.");
   });
 
+  /** A fake Ollama: records what it receives and answers with `reply(userText)`. */
+  function fakeOllama(reply: (userText: string) => string) {
+    const seen: string[] = [];
+    const transport: Transport = {
+      send: async (_id, request) => {
+        const body = request.body as { messages: { content: string }[] };
+        const user = (body.messages[1]?.content ?? "").replace(/<\/?text>/g, "").trim();
+        seen.push(user);
+        return {
+          status: 200,
+          headers: {},
+          body: { model: "gemma3:4b", message: { content: reply(user) }, done: true },
+        };
+      },
+    };
+    const engine = new CorrectionEngine({
+      settings: { providers: [{ id: "local", kind: "ollama", label: "L", model: "gemma3:4b" }] },
+      transport,
+      speller,
+    });
+    return { engine, seen };
+  }
+
+  it("every action starts from the spell-fixed text", async () => {
+    for (const operation of [
+      "rewrite",
+      "professional",
+      "concise",
+      "friendly",
+      "clarity",
+      "prompt",
+    ] as const) {
+      const { engine, seen } = fakeOllama((t) => t);
+      const result = await engine.run({
+        operation,
+        text: "Make the readme file imlpressive and dynamic.",
+      });
+      expect(seen[0], operation).toContain("impressive");
+      expect(seen[0], operation).not.toContain("imlpressive");
+      expect(result.corrected_text, operation).not.toContain("imlpressive");
+      expect(result.explanation, operation).toContainEqual(
+        expect.objectContaining({
+          original: "imlpressive",
+          corrected: "impressive",
+          source: "local",
+        }),
+      );
+      const keys = result.explanation.map((e) => `${e.original}→${e.corrected}`);
+      expect(new Set(keys).size, operation).toBe(keys.length);
+    }
+  });
+
+  it("spell-checks what the model wrote, in the output language", async () => {
+    const { engine } = fakeOllama(() => "Please send me the reprot before the meeting.");
+    const rewrite = await engine.run({
+      operation: "professional",
+      text: "send me the report asap",
+    });
+    expect(rewrite.corrected_text).toBe("Please send me the report before the meeting.");
+
+    const translate = fakeOllama(() => "I will send it tommorrow morning.");
+    const result = await translate.engine.run({
+      operation: "translate",
+      target_language: "en",
+      text: "Je vous l'envoie demain matin.",
+    });
+    expect(result.corrected_text).toBe("I will send it tomorrow morning.");
+  });
+
+  it("leaves model-only mode untouched", async () => {
+    const { engine, seen } = fakeOllama(() => "An imlpressive result.");
+    const result = await engine.run({
+      operation: "rewrite",
+      mode: "ai",
+      text: "An imlpressive result.",
+    });
+    expect(seen[0]).toBe("An imlpressive result.");
+    expect(result.corrected_text).toBe("An imlpressive result.");
+  });
+
   it("respects disabled rules and protected spans, and survives a failing speller", async () => {
     const off = new CorrectionEngine({
       settings: { disabled_rules: ["EN_SPELLING"] },

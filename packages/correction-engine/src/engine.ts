@@ -55,7 +55,7 @@ import {
   type PromptProfile,
   stripEchoedDelimiters,
 } from "./prompts.ts";
-import { fixLocally, mergeIssues, runLocalRules } from "./rules/index.ts";
+import { applyFixes, fixLocally, mergeIssues, runLocalRules } from "./rules/index.ts";
 import type { Speller } from "./spelling/speller.ts";
 import { charEditRatio, diffWords } from "./text/diff.ts";
 import { findProtectedSpans, overlapsAny } from "./text/protected.ts";
@@ -255,6 +255,18 @@ export class CorrectionEngine {
             findings.issues,
           )
         : undefined;
+    // Every other operation (rewrite, translate…) also starts from the locally fixed text, so
+    // a typo the model would copy or misread ("imlpressive") is gone before it sees it.
+    const cleaned =
+      mode === "hybrid" && operation.id !== "fix"
+        ? fixLocally(
+            request.text,
+            resolved.language,
+            this.registry.get(resolved.language),
+            { disabledRules: this.#disabledRules },
+            findings.issues,
+          )
+        : undefined;
     if (preview !== undefined) {
       options.onLocalPreview?.({
         corrected_text: preview.text,
@@ -284,8 +296,13 @@ export class CorrectionEngine {
     // per attempt rather than once for the whole chain.
     const completionFor = (adapter: ProviderAdapter): CompletionRequest => {
       const outputFormat = outputFormatFor(adapter);
+      // Hints point into the original text, so they are dropped when the text was changed.
       const prefixed =
-        outputFormat === "text" && preview !== undefined ? { text: preview.text, hints: [] } : {};
+        outputFormat === "text" && preview !== undefined
+          ? { text: preview.text, hints: [] }
+          : cleaned !== undefined && cleaned.applied.length > 0
+            ? { text: cleaned.text, hints: [] }
+            : {};
       return {
         ...buildPrompt(
           { ...promptInput, ...prefixed, profile: promptProfile(adapter), outputFormat },
@@ -354,6 +371,29 @@ export class CorrectionEngine {
       explanation.push(...fixed.applied.map(toExplanation));
       corrected = fixed.text;
     }
+
+    // Spelling post-pass for every operation, in the language the output is written in.
+    if (mode === "hybrid" && rejection === undefined) {
+      const outputLanguage =
+        operation.id === "translate" && request.target_language !== undefined
+          ? request.target_language
+          : resolved.language;
+      const spelled = await this.#spellFix(corrected, outputLanguage, options.signal);
+      explanation.push(...spelled.applied.map(toExplanation));
+      corrected = spelled.text;
+    }
+    if (cleaned !== undefined && cleaned.applied.length > 0) {
+      // Fixes made to the input before a rewrite are part of the result too.
+      explanation.unshift(...cleaned.applied.map(toExplanation));
+    }
+    const seen = new Set<string>();
+    const uniqueExplanation = explanation.filter((e) => {
+      const key = `${e.original}→${e.corrected}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    explanation.splice(0, explanation.length, ...uniqueExplanation);
 
     if (adapter !== adapters[0]) {
       warnings.push({
@@ -583,6 +623,23 @@ export class CorrectionEngine {
 
   #cloudAllowed(isLocal: boolean, consentGranted: boolean): boolean {
     return isLocal || (this.settings.privacy.cloud_processing_allowed && consentGranted);
+  }
+
+  /** Applies the unambiguous spelling fixes to `text` (used on model output). */
+  async #spellFix(
+    text: string,
+    language: string,
+    signal?: AbortSignal,
+  ): Promise<{ text: string; applied: Array<{ original: string; issue: GrammarIssue }> }> {
+    const issues = await this.#spelling(text, language, signal);
+    const result = applyFixes(text, issues);
+    return {
+      text: result.text,
+      applied: result.applied.map((issue) => ({
+        original: text.slice(issue.offset, issue.offset + issue.length),
+        issue,
+      })),
+    };
   }
 
   /** Spell-checker findings outside protected spans. A failing speller never fails a run. */

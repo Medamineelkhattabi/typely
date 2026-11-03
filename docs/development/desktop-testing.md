@@ -53,6 +53,10 @@ checker was verified from Rust with French (`recu` → reçu, `etait` → était
 `interessant` → intéressant); English uses the bundled list because no English Windows
 language pack is installed on this machine.
 
+**All actions.** With the same sentence, Professional on gemma3:4b (CLI, same engine and
+word list) received "impressive" instead of "imlpressive" and listed the spelling fix first.
+The panel path for non-Correct actions was not re-run by hand.
+
 ## Browser (user test, 2026-11-03, after the focus fix)
 
 From the diagnostics log (capture method, app, outcome):

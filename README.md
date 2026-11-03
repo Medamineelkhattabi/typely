@@ -15,7 +15,7 @@ were typing.
 [![Rust](https://img.shields.io/badge/Rust-stable-B7410E?logo=rust&logoColor=white)](apps/desktop/src-tauri)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](packages)
 [![Local first](https://img.shields.io/badge/privacy-local--first-2ea44f)](#-private-by-design)
-[![Tests](https://img.shields.io/badge/tests-218%20passing-2ea44f)](#-quality)
+[![Tests](https://img.shields.io/badge/tests-221%20passing-2ea44f)](#-quality)
 [![Status](https://img.shields.io/badge/status-desktop%20MVP-orange)](docs/development/roadmap.md)
 [![License](https://img.shields.io/badge/license-proprietary-555)](LICENSE)
 
@@ -105,8 +105,9 @@ sequenceDiagram
 1. **Local rules and spell checking**: deterministic, high-precision fixes in milliseconds:
    typos, repeated words, spacing and capitalisation, French typography, Arabic punctuation.
    A bundled English dictionary (US and British spellings) and the Windows spell checker
-   catch misspellings even when the model misses them. They fix only typo-shaped,
-   unambiguous ones ("imlpressive" → "impressive") and leave jargon and names alone.
+   catch misspellings even when the model misses them, for every action: a rewrite or a
+   translation starts from the spell-fixed text, and the model's output is checked too. They
+   fix only typo-shaped, unambiguous ones ("imlpressive" → "impressive") and leave jargon and names alone.
 2. **LanguageTool** (optional, self-hostable): deeper grammar checks. Supported by the
    engine; the desktop settings screen for it is still to come.
 3. **AI model**: local (Ollama) or cloud (OpenAI, Anthropic, Gemini, any OpenAI-compatible
@@ -257,7 +258,7 @@ the full design in [architecture.md](docs/architecture/architecture.md).
 
 ## 🧪 Quality
 
-- **218 automated tests**: 192 TypeScript (Vitest) and 26 Rust, plus contract tests that
+- **221 automated tests**: 195 TypeScript (Vitest) and 26 Rust, plus contract tests that
   pin the TypeScript and Rust sides to the same fixtures.
 - **Strict everywhere**: TypeScript strict mode, Biome lint and format, `clippy -D warnings`,
   `rustfmt`.

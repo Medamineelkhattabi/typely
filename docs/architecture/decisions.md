@@ -278,6 +278,10 @@ prompt wording did not help. A fix that depends on a model noticing is not depen
   candidate (names, jargon) are left alone. Acronyms, mid-sentence capitalised words,
   identifiers and, for the English list, accented words are not checked.
 
+- **Every action, not only Correct** (hybrid mode): rewrites, tone changes, translation and
+  prompt improvement start from the locally fixed text, and the model's output is spell-checked
+  again, in the target language for Translate. Model-only mode (`ai`) is left untouched.
+
 **Consequences.**
 - On 20,000 words of this repository's docs and source, every automatic fix was a real typo;
   jargon such as Ollama, keyring, rustup or kubectl was left alone.

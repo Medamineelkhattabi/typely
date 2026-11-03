@@ -1,9 +1,13 @@
 name: CI
 
+# Manual for now: GitHub does not start jobs on this account until its billing lock is
+# lifted ("The job was not started because your account is locked due to a billing
+# issue"). Restore the push and pull_request triggers below once it is resolved.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
 
 permissions:
   contents: read
