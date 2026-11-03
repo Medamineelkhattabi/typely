@@ -19,7 +19,7 @@ Taken 2026-11-02 on the primary development machine; toolchain rows updated 2026
 
 Verified 2026-11-03: a Rust release build compiles, links with MSVC and runs (1.3 s).
 Windows long-path support is off (`LongPathsEnabled = 0`): keep the repository at a short
-path such as `C:\dev	ypely`. Cargo fails with "path too long" under deep folders.
+path such as `C:\dev\typely`. Cargo fails with "path too long" under deep folders.
 
 ### Repository location
 
