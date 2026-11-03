@@ -115,6 +115,16 @@ export function Panel() {
   const head =
     settings === undefined ? undefined : headProvider(settings.engine, operation, usable);
   const experimental = operation !== "fix" && head !== undefined && isSmallModel(head.model);
+  // A small model answered a correction: offer the larger one, which catches grammar the 1B
+  // misses ("there is a lot of issue"), at the cost of ~5–12 s.
+  const answeredBy = usable.find((p) => p.id === result?.meta.provider_id);
+  const deeper =
+    result !== undefined &&
+    operation === "fix" &&
+    answeredBy !== undefined &&
+    isSmallModel(answeredBy.model)
+      ? usable.find((p) => p.id !== answeredBy.id && !isSmallModel(p.model))
+      : undefined;
   const password = capture?.error?.code === "password_field";
 
   return (
@@ -133,10 +143,11 @@ export function Panel() {
           }
         >
           {capture?.source_app ?? ""}
-          {head !== undefined && !localOnly
-            ? ` · ${head.label}`
-            : localOnly
-              ? " · local rules"
+          {/* The provider that answered, else the one the action will use. */}
+          {localOnly
+            ? " · local rules"
+            : (answeredBy ?? head) !== undefined
+              ? ` · ${(answeredBy ?? head)?.label}`
               : ""}
         </span>
         <button type="button" className="icon" onClick={close} aria-label="Close">
@@ -193,6 +204,14 @@ export function Panel() {
           </p>
         )}
         <ResultView state={state} />
+        {deeper !== undefined && (
+          <p className="deeper">
+            <button type="button" onClick={() => void run("fix", text, target, deeper.id)}>
+              Check again with {deeper.model}
+            </button>
+            <span className="muted small"> More thorough on grammar, about 5–12 s.</span>
+          </p>
+        )}
       </main>
 
       {actionError !== undefined && (

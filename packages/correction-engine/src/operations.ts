@@ -20,17 +20,23 @@ const definitions: Record<Operation, OperationDefinition> = {
   fix: {
     id: "fix",
     label: "Correct",
-    promptVersion: "fix-2",
+    promptVersion: "fix-3",
     explanationStyle: "all",
     maxChangeRatio: 0.35,
     outputFactor: 1.1,
     instructions:
-      "Correct spelling, grammar, punctuation, capitalisation, agreement, verb conjugation and typos. " +
+      "Correct spelling, grammar, subject-verb and singular/plural agreement, verb conjugation, " +
+      "punctuation, capitalisation and typos. " +
       "Make the minimum number of changes: do not rephrase, reorder, change word choice, tone or style when " +
       "the original is correct. If the text has no errors, return it unchanged with an empty explanation.",
     compactInstructions:
-      "Correct spelling, grammar, punctuation, capitalisation, agreement, conjugation and typos with " +
-      "minimal changes. Keep the wording, tone and style. Return correct text unchanged.",
+      // Measured 2026-11-03: the earlier "minimal changes… return correct text unchanged" wording
+      // made gemma3:4b leave "there is a lot of issue" as is; this one fixes it and still keeps
+      // correct text, jargon and injected instructions untouched (desktop-testing.md).
+      "Correct every error: spelling, grammar, subject-verb and singular/plural agreement, " +
+      "conjugation, punctuation, capitalisation and typos. Change only what is wrong and keep " +
+      "everything else, including the wording, tone and style. If the text has no error, return " +
+      "it unchanged.",
   },
   rewrite: {
     id: "rewrite",

@@ -77,7 +77,7 @@ export function useCorrection(settings: AppSettings | undefined) {
   }, []);
 
   const run = useCallback(
-    async (operation: Operation, text: string, targetLanguage?: string) => {
+    async (operation: Operation, text: string, targetLanguage?: string, providerId?: string) => {
       if (engine === undefined || settings === undefined) return;
       cancel();
       const abort = new AbortController();
@@ -91,6 +91,7 @@ export function useCorrection(settings: AppSettings | undefined) {
             operation,
             text,
             mode: modeFor(settings),
+            ...(providerId === undefined ? {} : { provider_id: providerId }),
             ...(operation === "translate" && targetLanguage !== undefined
               ? { target_language: targetLanguage }
               : {}),

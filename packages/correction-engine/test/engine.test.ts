@@ -156,7 +156,7 @@ describe("CorrectionEngine — AI modes", () => {
       provider_id: "local",
       model: "llama-test",
       usage: { input_tokens: 100, output_tokens: 40 },
-      prompt_version: "fix-2",
+      prompt_version: "fix-3",
     });
     expect(result.warnings).toEqual([]);
     const body = calls[0]?.request.body as {
