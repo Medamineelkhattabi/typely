@@ -5,6 +5,7 @@
 mod commands;
 mod diag;
 mod endpoints;
+mod languagetool;
 mod ollama;
 mod panel;
 mod platform;
@@ -13,11 +14,11 @@ mod settings;
 mod shortcut;
 mod transport;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
 
 use crate::panel::PanelState;
 use crate::secrets::{KeyringStore, SecretStore};
@@ -33,6 +34,8 @@ pub struct AppState {
     pub shortcut: Mutex<Option<tauri_plugin_global_shortcut::Shortcut>>,
     /// Why the saved shortcut is not active, if registration failed at startup.
     pub shortcut_error: Mutex<Option<String>>,
+    /// The local grammar server, started on demand.
+    pub languagetool: Arc<languagetool::LanguageTool>,
 }
 
 fn show_main(app: &AppHandle) {
@@ -90,7 +93,9 @@ pub fn run() {
                 panel: PanelState::default(),
                 shortcut: Mutex::new(None),
                 shortcut_error: Mutex::new(None),
+                languagetool: Arc::default(),
             });
+            Arc::clone(&app.state::<AppState>().languagetool).watch();
             let handle = app.handle().clone();
             let accelerator = handle.state::<AppState>().settings.get().desktop.shortcut;
             if let Err(error) = shortcut::register(&handle, &accelerator) {
@@ -128,7 +133,16 @@ pub fn run() {
             panel::panel_hide,
             panel::panel_replace,
             panel::panel_copy,
+            commands::languagetool_status,
+            commands::languagetool_start,
+            commands::languagetool_stop,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Typely");
+        .build(tauri::generate_context!())
+        .expect("error while building Typely")
+        .run(|app, event| {
+            // The grammar server goes with Typely (the job object also covers a crash).
+            if let RunEvent::Exit = event {
+                app.state::<AppState>().languagetool.stop();
+            }
+        });
 }

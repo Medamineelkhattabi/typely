@@ -128,6 +128,20 @@ async fn run_request(
             .map_err(|m| TransportError::new(ErrorKind::NotConfigured, m))?;
         secret_for(stored, &endpoint.origin())
     };
+    // The managed grammar server is never waited for: until it is ready, the engine goes on
+    // with its other layers and reports that the grammar checker is starting.
+    if endpoint_id == crate::endpoints::LANGUAGETOOL_ENDPOINT_ID
+        && uses_managed_languagetool(&endpoint)
+    {
+        if !state.languagetool.is_ready() {
+            state.languagetool.ensure_started();
+            return Err(TransportError::new(
+                ErrorKind::Network,
+                "The grammar checker is starting; it will be used from the next correction.",
+            ));
+        }
+        state.languagetool.touch();
+    }
     let timeout = Duration::from_millis(state.settings.get().engine.limits.request_timeout_ms);
     let guard = state.inflight.register(request_id);
     state
@@ -185,6 +199,34 @@ pub async fn spell_check(
     tauri::async_runtime::spawn_blocking(move || crate::platform::spell_check(&text, &language))
         .await
         .map_err(|e| e.to_string())?
+}
+
+pub fn uses_managed_languagetool(endpoint: &Endpoint) -> bool {
+    endpoint.origin() == crate::languagetool::URL
+}
+
+/// Whether the settings point the engine at the managed local grammar server.
+pub fn managed_languagetool_enabled(settings: &AppSettings) -> bool {
+    settings.engine.languagetool.as_ref().is_some_and(|lt| {
+        lt.enabled && lt.base_url.trim_end_matches('/') == crate::languagetool::URL
+    })
+}
+
+#[tauri::command]
+pub fn languagetool_status(state: State<'_, AppState>) -> crate::languagetool::Status {
+    state.languagetool.status()
+}
+
+#[tauri::command]
+pub fn languagetool_start(state: State<'_, AppState>) -> crate::languagetool::Status {
+    state.languagetool.ensure_started();
+    state.languagetool.status()
+}
+
+#[tauri::command]
+pub fn languagetool_stop(state: State<'_, AppState>) -> crate::languagetool::Status {
+    state.languagetool.stop();
+    state.languagetool.status()
 }
 
 #[tauri::command]

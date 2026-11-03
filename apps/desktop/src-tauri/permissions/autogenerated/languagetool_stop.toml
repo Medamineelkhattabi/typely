@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-languagetool-stop"
+description = "Enables the languagetool_stop command without any pre-configured scope."
+commands.allow = ["languagetool_stop"]
+
+[[permission]]
+identifier = "deny-languagetool-stop"
+description = "Denies the languagetool_stop command without any pre-configured scope."
+commands.deny = ["languagetool_stop"]

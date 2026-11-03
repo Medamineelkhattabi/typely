@@ -94,6 +94,10 @@ pub fn on_shortcut(app: &AppHandle) {
     if state.panel.busy.swap(true, Ordering::SeqCst) {
         return;
     }
+    // An explicit action: warm the grammar checker up while the first result is computed.
+    if crate::commands::managed_languagetool_enabled(&state.settings.get()) {
+        state.languagetool.ensure_started();
+    }
     let app = app.clone();
     std::thread::spawn(move || {
         let state = app.state::<AppState>();

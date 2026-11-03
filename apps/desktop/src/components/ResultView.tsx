@@ -43,7 +43,7 @@ export function Warnings({ warnings }: { warnings: readonly ResultWarning[] }) {
     <ul className="warnings">
       {shown.map((w) => (
         <li key={w.code + w.message} className={SERIOUS.has(w.code) ? "serious" : ""}>
-          {WARNING_TEXT[w.code] ?? w.message}
+          {WARNING_TEXT[w.code] ?? w.message.replace(/^LanguageTool unavailable: /, "")}
         </li>
       ))}
     </ul>

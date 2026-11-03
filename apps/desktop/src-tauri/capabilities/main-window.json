@@ -15,6 +15,9 @@
     "allow-provider-cancel",
     "allow-ollama-detect",
     "allow-panel-copy",
-    "allow-spell-check"
+    "allow-spell-check",
+    "allow-languagetool-status",
+    "allow-languagetool-start",
+    "allow-languagetool-stop"
   ]
 }

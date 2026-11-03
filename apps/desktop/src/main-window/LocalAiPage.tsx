@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { describeError } from "../errors.ts";
-import { detectOllama, type OllamaStatus } from "../ipc.ts";
+import {
+  detectOllama,
+  LANGUAGETOOL_URL,
+  type LanguageToolStatus,
+  languageToolStart,
+  languageToolStatus,
+  languageToolStop,
+  type OllamaStatus,
+} from "../ipc.ts";
 import {
   FAST_MODEL,
   FAST_PROVIDER_ID,
@@ -44,6 +52,7 @@ export function LocalAiPage({
 
   return (
     <>
+      <GrammarChecker settings={settings} update={update} />
       <h2>Local AI (Ollama)</h2>
       <p>
         A local model keeps your text on this computer. Typely does not bundle or install Ollama; it
@@ -131,6 +140,95 @@ export function LocalAiPage({
               corrections work better with {QUALITY_MODEL}: set Fix to it under Providers if you
               mostly write Arabic.
             </p>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+const STATE_TEXT: Record<LanguageToolStatus["state"], string> = {
+  not_installed: "Not installed",
+  stopped: "Stopped: starts by itself when you press the shortcut",
+  starting: "Starting… (about 20 seconds, then it stays ready)",
+  ready: "Ready",
+  failed: "Could not start",
+};
+
+/** LanguageTool: thousands of English and French rules, run on this PC, started on demand. */
+function GrammarChecker({ settings, update }: { settings: AppSettings; update: UpdateSettings }) {
+  const [status, setStatus] = useState<LanguageToolStatus>();
+  const refresh = useCallback(() => {
+    languageToolStatus()
+      .then(setStatus)
+      .catch(() => undefined);
+  }, []);
+  useEffect(refresh, [refresh]);
+  // Follow a start in progress.
+  useEffect(() => {
+    if (status?.state !== "starting") return;
+    const timer = setInterval(refresh, 1500);
+    return () => clearInterval(timer);
+  }, [status?.state, refresh]);
+
+  const lt = settings.engine.languagetool;
+  const enabled = lt?.enabled === true && lt.base_url.replace(/\/+$/, "") === LANGUAGETOOL_URL;
+
+  return (
+    <>
+      <h2>Grammar checker</h2>
+      <p>
+        Thousands of English and French grammar rules from LanguageTool (languagetool.org), running
+        on this computer. It starts when you press the shortcut, uses about 0.4 GB while it runs,
+        and stops after 10 idle minutes. Only clear-cut fixes are applied automatically; the rest
+        are shown as suggestions.
+      </p>
+      {status?.state === "not_installed" ? (
+        <div className="notice">
+          <p>
+            Not installed. Put a portable Java and LanguageTool in <code>{status.folder}</code> (see
+            the setup guide, "Grammar checker").
+          </p>
+        </div>
+      ) : (
+        <>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={enabled}
+              disabled={status === undefined}
+              onChange={(e) =>
+                update((s) => {
+                  s.engine.languagetool = {
+                    enabled: e.target.checked,
+                    base_url: LANGUAGETOOL_URL,
+                    consent_granted: false,
+                  };
+                })
+              }
+            />
+            <span>
+              <strong>Use the grammar checker</strong>
+              {status?.version !== undefined ? ` (LanguageTool ${status.version})` : ""}
+            </span>
+          </label>
+          {status !== undefined && (
+            <div className="row">
+              <span className={status.state === "failed" ? "error-text" : "muted"}>
+                {STATE_TEXT[status.state]}
+                {status.error !== undefined ? `: ${status.error}` : ""}
+              </span>
+              {enabled && (status.state === "stopped" || status.state === "failed") && (
+                <button type="button" onClick={() => languageToolStart().then(setStatus)}>
+                  Start now
+                </button>
+              )}
+              {(status.state === "ready" || status.state === "starting") && (
+                <button type="button" onClick={() => languageToolStop().then(setStatus)}>
+                  Stop
+                </button>
+              )}
+            </div>
           )}
         </>
       )}

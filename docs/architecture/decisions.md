@@ -314,3 +314,37 @@ gemma3:4b costs a click and several seconds for a very common mistake.
 
 **Consequences.** On ~20,000 words of this repository's docs and code, the only match is a
 real error. Rarer shapes ("These issue are fixed") are left to the model and the deeper check.
+
+---
+
+## ADR-020 — LanguageTool as the local grammar layer, started on demand
+
+Status: accepted (2026-11-03, user choice: portable, on demand).
+
+**Context.** The user wants to rely on the panel for English and French grammar. Handwritten
+rules cannot cover that; LanguageTool has thousands of rules for both, and the engine already
+supported it as Layer 2 (ADR-007) without a local server.
+
+**Decision.**
+- **Portable install, no system change:** a Temurin JRE and LanguageTool in
+  `%LOCALAPPDATA%\Typely\languagetool` (setup.md), not bundled with Typely.
+- **Rust manages the process** (`languagetool.rs`): loopback port 18081, hidden window,
+  512 MB heap cap, serial GC. Started when the panel opens (an explicit action), warmed up
+  for English and French in the background, stopped after 10 idle minutes or with Typely; a
+  job object kills it even if Typely crashes. Nothing runs at startup.
+- **Never waited for:** until it is ready, the transport answers at once and the engine goes
+  on with its other layers; the panel says the grammar checker is starting.
+- **What may be applied automatically** (`isSafeLanguageToolFix`, schema field
+  `auto_fix`): grammar, agreement and confusion rules. Spelling (Typely's dictionary is
+  stricter with names), spacing and casing (Typely's own rules), commas, style, US/UK
+  preferences and capitalised words in mid-sentence are suggestions only, and so are two
+  grammar fixes on adjacent words (they can contradict: "This are" → "These is").
+
+**Consequences.**
+- Measured: ready in 6.3 s, first English check 10.9 s (rule loading), then ~0.1 s per check;
+  French ~1.2–2 s for its first checks. ~0.4–0.5 GB while running, nothing when stopped.
+- Real-text precision: on this repository's English docs, 0 automatic LanguageTool fixes;
+  on typical errors it fixes "I has a apple" → "I have an apple", "tu vien" → "tu viens",
+  "je les ai vu" → "vus", "a la gare" → "à la gare".
+- The first correction after starting may not include LanguageTool yet.
+- Typely does not download LanguageTool itself yet; an in-app installer is future work.

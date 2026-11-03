@@ -18,6 +18,13 @@ is not covered by Typely's [LICENSE](LICENSE).
 
 > Copyright 2000-2026 by Kevin Atkinson. Copyright 1993, Geoff Kuenning, Granada Hills, CA.
 
+## LanguageTool and Eclipse Temurin (optional, not redistributed)
+
+The optional grammar checker runs LanguageTool 6.6 (<https://languagetool.org>, GNU LGPL 2.1)
+on an Eclipse Temurin Java runtime (GNU GPL v2 with the Classpath Exception). Both are
+downloaded separately by the user (see the setup guide) and run as a separate local process;
+neither is included in this repository or linked into Typely.
+
 ## Windows spell checker
 
 Spell checking for other languages uses the spell checker built into Windows (the

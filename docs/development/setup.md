@@ -76,6 +76,19 @@ with the recommended environment (PowerShell):
 $env:OLLAMA_HOST="127.0.0.1:11434"; $env:OLLAMA_IGPU_ENABLE="1"; $env:OLLAMA_NO_CLOUD="1"; $env:OLLAMA_MODELS="$env:USERPROFILE\typely-bench\models"; & "$env:USERPROFILE\typely-bench\ollama\ollama.exe" serve
 ```
 
+### Grammar checker (LanguageTool)
+
+Optional, local, started on demand by Typely (ADR-020). Unzip both archives into
+`%LOCALAPPDATA%\Typely\languagetool` (no installer, nothing system-wide):
+
+| Component                                                    | File                                                                                                                                                                                        | SHA-256                                                                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Java runtime (Eclipse Temurin 21.0.12.1+1, JRE, Windows x64) | [OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip](https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip) | `d35f31e712f0fcf6ac5a093edc90204fbff22f720ba3950bd09d331d5e621636`                                       |
+| LanguageTool 6.6                                             | [LanguageTool-6.6.zip](https://languagetool.org/download/LanguageTool-6.6.zip) (252 MB)                                                                                                     | `53600506b399bb5ffe1e4c8dec794fd378212f14aaf38ccef9b6f89314d11631` (recorded on download; not published) |
+
+The folder then holds `jdk-21.0.12.1+1-jre` and `LanguageTool-6.6` (about 540 MB). Turn it
+on under **Local AI → Grammar checker**.
+
 Desktop settings live in `%APPDATA%\app.typely.desktop\settings.json`, API keys in the
 Windows Credential Manager (generic credentials named `<provider id>.app.typely.desktop`).
 

@@ -13,7 +13,7 @@
 [![Rust](https://img.shields.io/badge/Rust-stable-B7410E?logo=rust&logoColor=white)](apps/desktop/src-tauri)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](packages)
 [![Local first](https://img.shields.io/badge/privacy-local--first-2ea44f)](#private-by-design)
-[![Tests](https://img.shields.io/badge/tests-226%20passing-2ea44f)](#built-to-last)
+[![Tests](https://img.shields.io/badge/tests-232%20passing-2ea44f)](#built-to-last)
 [![Status](https://img.shields.io/badge/status-desktop%20MVP-orange)](docs/development/roadmap.md)
 [![License](https://img.shields.io/badge/license-proprietary-555)](LICENSE)
 
@@ -205,8 +205,9 @@ sequenceDiagram
    (US and British spellings) and the Windows spell checker catch misspellings the AI would
    miss, for **every** action. Only clear, typo-shaped fixes are automatic
    ("imlpressive" → "impressive"); names and jargon are left alone.
-2. **LanguageTool** (optional, self-hostable) for deeper grammar. Supported by the engine;
-   the settings screen is still to come.
+2. **Grammar checker** (optional): thousands of English and French rules from LanguageTool,
+   run on your PC, started when you use Typely and stopped when idle. Only clear-cut grammar
+   fixes are applied automatically; style and uncertain cases are shown as suggestions.
 3. **AI**: local (Ollama) or cloud (OpenAI, Anthropic, Gemini, any OpenAI-compatible server),
    with automatic retry and fallback between providers.
 
@@ -378,7 +379,7 @@ Every verified entry comes from a real run, logged in the
 
 ## Built to last
 
-- **226 automated tests**: 198 TypeScript (Vitest) and 28 Rust, plus contract tests that keep
+- **232 automated tests**: 203 TypeScript (Vitest) and 29 Rust, plus contract tests that keep
   the TypeScript and Rust sides in sync.
 - **Strict everywhere**: TypeScript strict mode, Biome, `clippy -D warnings`, `rustfmt`.
 - **Precision checked on real text**: on 20,000 words of docs and code, every automatic

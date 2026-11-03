@@ -89,6 +89,21 @@ field"). The focus check now waits for the app to restore its own focus and reco
 recreated control by its fingerprint (process, control type, ids, position). Not re-tested in
 Teams yet.
 
+## Grammar checker (LanguageTool, 2026-11-03)
+
+Through the panel in Notepad, with LanguageTool installed portably and turned on:
+- Nothing runs at Typely startup (no Java process).
+- First shortcut press: LanguageTool starts in the background; the correction does not wait
+  and the panel shows "The grammar checker is starting; it will be used from the next
+  correction." It listens on 127.0.0.1 only; ~0.5 GB during warm-up.
+- About 20 s later, the same sentence: "I has a apple and I could of eaten it yesterday." →
+  "I have an apple and I could have eaten it yesterday.", with LanguageTool's explanations,
+  2.4 s including the model. Replace pasted it (read back from the window).
+- French ("Il faut que tu vien demain, je les ai vu a la gare.") first showed only "à": two
+  correct fixes 18 characters apart were held back as "conflicting". The conflict check now
+  only covers adjacent words; through the engine with the real server it gives "viens",
+  "vus" and "à". The panel run for French after that change is still to be repeated.
+
 ## Browser (user test, 2026-11-03, after the focus fix)
 
 From the diagnostics log (capture method, app, outcome):

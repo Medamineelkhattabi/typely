@@ -15,6 +15,9 @@ fn main() {
         "panel_replace",
         "panel_copy",
         "spell_check",
+        "languagetool_status",
+        "languagetool_start",
+        "languagetool_stop",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

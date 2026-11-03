@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-languagetool-start"
+description = "Enables the languagetool_start command without any pre-configured scope."
+commands.allow = ["languagetool_start"]
+
+[[permission]]
+identifier = "deny-languagetool-start"
+description = "Denies the languagetool_start command without any pre-configured scope."
+commands.deny = ["languagetool_start"]

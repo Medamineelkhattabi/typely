@@ -64,6 +64,19 @@ export interface OllamaStatus {
   error?: string;
 }
 
+/** The local grammar server (LanguageTool), managed by Rust: started on demand. */
+export const LANGUAGETOOL_URL = "http://127.0.0.1:18081";
+export interface LanguageToolStatus {
+  state: "not_installed" | "stopped" | "starting" | "ready" | "failed";
+  version?: string;
+  url: string;
+  folder?: string;
+  error?: string;
+}
+export const languageToolStatus = () => invoke<LanguageToolStatus>("languagetool_status");
+export const languageToolStart = () => invoke<LanguageToolStatus>("languagetool_start");
+export const languageToolStop = () => invoke<LanguageToolStatus>("languagetool_stop");
+
 /** Lists installed and loaded models. Never loads a model. */
 export const detectOllama = () => invoke<OllamaStatus>("ollama_detect");
 
