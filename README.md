@@ -13,7 +13,7 @@
 [![Rust](https://img.shields.io/badge/Rust-stable-B7410E?logo=rust&logoColor=white)](apps/desktop/src-tauri)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](packages)
 [![Local first](https://img.shields.io/badge/privacy-local--first-2ea44f)](#private-by-design)
-[![Tests](https://img.shields.io/badge/tests-221%20passing-2ea44f)](#built-to-last)
+[![Tests](https://img.shields.io/badge/tests-223%20passing-2ea44f)](#built-to-last)
 [![Status](https://img.shields.io/badge/status-desktop%20MVP-orange)](docs/development/roadmap.md)
 [![License](https://img.shields.io/badge/license-proprietary-555)](LICENSE)
 
@@ -377,7 +377,7 @@ Every verified entry comes from a real run, logged in the
 
 ## Built to last
 
-- **221 automated tests**: 195 TypeScript (Vitest) and 26 Rust, plus contract tests that keep
+- **223 automated tests**: 195 TypeScript (Vitest) and 28 Rust, plus contract tests that keep
   the TypeScript and Rust sides in sync.
 - **Strict everywhere**: TypeScript strict mode, Biome, `clippy -D warnings`, `rustfmt`.
 - **Precision checked on real text**: on 20,000 words of docs and code, every automatic

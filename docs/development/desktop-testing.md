@@ -57,6 +57,36 @@ language pack is installed on this machine.
 word list) received "impressive" instead of "imlpressive" and listed the spelling fix first.
 The panel path for non-Correct actions was not re-run by hand.
 
+## Grammar and paste reliability (2026-11-03)
+
+**Grammar.** User report: "Hello, there is a lot of issue." came back unchanged. Local rules,
+gemma3:1b and gemma3:4b all returned it as is. Measured on 8 cases (3 with grammar errors, 5
+that must stay unchanged, including jargon, French and a prompt injection):
+
+| Correction wording                                          | gemma3:1b    | gemma3:4b                                                         |
+| ----------------------------------------------------------- | ------------ | ----------------------------------------------------------------- |
+| Previous ("minimal changes… return correct text unchanged") | 1 of 3 fixed | 2 of 3 fixed                                                      |
+| New ("correct every error… change only what is wrong")      | 1 of 3 fixed | **3 of 3 fixed**, 5 of 5 kept                                     |
+| New + an example in the prompt                              | 1 of 3       | 3 of 3, but leaked the example into a correct sentence (rejected) |
+
+gemma3:1b cannot fix "a lot of issue" or "We has three meeting" with any wording. The panel
+now offers **Check again with gemma3:4b** after a correction by a small model; verified in
+Notepad: "Hello, there are a lot of issues." (18.6 s cold, 2–7 s warm).
+
+**Paste.** Replace logged success in Notepad while nothing was pasted. Notepad is a WinUI app:
+keys go through an input-site window, and a Ctrl+V sent ~35 ms after reactivation was
+dropped (a Ctrl+V sent later by hand worked). A 120 ms settle helped only 2 runs in 3.
+Delayed clipboard rendering was tried to detect the paste, but Windows' clipboard watcher
+requests the data on its own, so it cannot tell a paste from a watcher. Standard edit
+controls (Edit, RichEdit, Notepad's RichEditD2DPT) now get WM_PASTE, which does not depend on
+keyboard routing: verified on Notepad by sending it directly. The end-to-end Replace through
+the panel with this change still needs a manual run.
+
+**Teams.** Replace refused twice ("could not put the cursor back in the original text
+field"). The focus check now waits for the app to restore its own focus and recognises a
+recreated control by its fingerprint (process, control type, ids, position). Not re-tested in
+Teams yet.
+
 ## Browser (user test, 2026-11-03, after the focus fix)
 
 From the diagnostics log (capture method, app, outcome):

@@ -106,6 +106,7 @@ pub fn replace_selection(target: &Target, text: &str) -> Result<(), String> {
         uia::restore_focus(element)?;
     }
     input::wait_for_modifiers_release(Duration::from_millis(800));
+    window::settle(target);
     let owner = clipboard::Owner::new()?;
     let saved = clipboard::snapshot(&owner)?;
     if saved.unrestorable {
@@ -121,8 +122,17 @@ pub fn replace_selection(target: &Target, text: &str) -> Result<(), String> {
         clipboard::restore(&owner, saved)?;
         return Err("The original window lost focus; nothing was pasted".to_owned());
     }
-    let pasted = input::send_ctrl_chord(b'v');
-    sleep(PASTE_SETTLE);
+    let edit_control = target.element.as_ref().and_then(|e| e.edit_control());
+    let pasted = match edit_control {
+        Some(control) => window::paste_into(target, control),
+        None => input::send_ctrl_chord(b'v'),
+    };
+    // WM_PASTE has finished when it returns; a Ctrl+V is read by the app a little later.
+    sleep(if edit_control.is_some() {
+        Duration::from_millis(100)
+    } else {
+        PASTE_SETTLE
+    });
     // If something else wrote to the clipboard meanwhile, leave that content alone.
     if clipboard::sequence_number() == ours {
         clipboard::restore(&owner, saved)?;

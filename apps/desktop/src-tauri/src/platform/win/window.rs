@@ -3,7 +3,7 @@
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, POINT, RECT};
+use windows::Win32::Foundation::{CloseHandle, HANDLE, HWND, LPARAM, POINT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
     ClientToScreen, GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromPoint,
 };
@@ -11,12 +11,14 @@ use windows::Win32::Security::{GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY
 use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
 use windows::Win32::System::Threading::{
     GetCurrentProcess, GetCurrentProcessId, OpenProcess, OpenProcessToken, PROCESS_NAME_WIN32,
-    PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+    PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, QueryFullProcessImageNameW,
+    WaitForInputIdle,
 };
 use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
 use windows::Win32::UI::WindowsAndMessaging::{
     GUITHREADINFO, GetCursorPos, GetForegroundWindow, GetGUIThreadInfo, GetWindowThreadProcessId,
-    IsIconic, IsWindow, SW_RESTORE, SetForegroundWindow, ShowWindow,
+    IsIconic, IsWindow, SMTO_ABORTIFHUNG, SW_RESTORE, SendMessageTimeoutW, SetForegroundWindow,
+    ShowWindow, WM_PASTE,
 };
 use windows::core::PWSTR;
 
@@ -112,6 +114,58 @@ pub fn is_elevated(pid: u32) -> bool {
         Some(process) => token_elevated(process.0).unwrap_or(true),
         None => true,
     }
+}
+
+/// Gives a just-activated window time to accept input. Measured 2026-11-03: Notepad ignored a
+/// Ctrl+V sent ~35 ms after it was brought back to the front, and accepted the same keystroke
+/// once it had settled. Waits a short moment, then until the app is idle (bounded).
+pub fn settle(target: &Target) {
+    sleep(Duration::from_millis(120));
+    // SAFETY: SYNCHRONIZE + limited query rights only; the handle is closed by `Handle`.
+    if let Ok(process) = unsafe {
+        OpenProcess(
+            PROCESS_SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
+            false,
+            target.pid,
+        )
+    } {
+        let process = Handle(process);
+        // SAFETY: valid process handle; returns at once for non-GUI or idle processes.
+        let _ = unsafe { WaitForInputIdle(process.0, 300) };
+    }
+}
+
+/// Pastes into a standard edit control with WM_PASTE. Unlike a simulated Ctrl+V it does not
+/// depend on keyboard focus having settled (WinUI apps such as Notepad route keys through an
+/// input site window and dropped early keystrokes), it is synchronous, and it stays undoable.
+/// Only for a window of the target process.
+pub fn paste_into(target: &Target, control: isize) -> Result<(), String> {
+    let hwnd = HWND(control as *mut core::ffi::c_void);
+    let mut pid = 0u32;
+    // SAFETY: plain window queries and a synchronous message with a timeout.
+    unsafe {
+        if !IsWindow(Some(hwnd)).as_bool() {
+            return Err("The text field is gone".to_owned());
+        }
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        if pid != target.pid {
+            return Err("The text field now belongs to another program".to_owned());
+        }
+        let mut result = 0usize;
+        let sent = SendMessageTimeoutW(
+            hwnd,
+            WM_PASTE,
+            WPARAM(0),
+            LPARAM(0),
+            SMTO_ABORTIFHUNG,
+            2_000,
+            Some(&mut result),
+        );
+        if sent.0 == 0 {
+            return Err("The app did not respond to the paste".to_owned());
+        }
+    }
+    Ok(())
 }
 
 /// Brings the recorded window back and checks it really is in front and still belongs to the

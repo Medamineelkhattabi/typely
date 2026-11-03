@@ -31,10 +31,88 @@ pub enum Outcome {
     },
 }
 
+/// What identifies a control when its UI Automation object has been recreated (web views
+/// such as Teams rebuild them): the same process, control type, ids and position.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Fingerprint {
+    process_id: i32,
+    control_type: i32,
+    automation_id: String,
+    class_name: String,
+    rect: Option<Rect>,
+}
+
+impl Fingerprint {
+    fn of(element: &IUIAutomationElement) -> Option<Fingerprint> {
+        // SAFETY: COM calls on a live element.
+        unsafe {
+            Some(Fingerprint {
+                process_id: element.CurrentProcessId().ok()?,
+                control_type: element.CurrentControlType().ok()?.0,
+                automation_id: element
+                    .CurrentAutomationId()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+                class_name: element
+                    .CurrentClassName()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+                rect: element_rect(element),
+            })
+        }
+    }
+
+    /// Same control: everything matches, and the position within a few pixels.
+    fn matches(&self, other: &Fingerprint) -> bool {
+        let near = |a: Option<Rect>, b: Option<Rect>| match (a, b) {
+            (Some(a), Some(b)) => {
+                (a.left - b.left).abs() <= 4
+                    && (a.top - b.top).abs() <= 4
+                    && (a.right - b.right).abs() <= 4
+                    && (a.bottom - b.bottom).abs() <= 4
+            }
+            _ => false,
+        };
+        self.process_id == other.process_id
+            && self.control_type == other.control_type
+            && self.automation_id == other.automation_id
+            && self.class_name == other.class_name
+            && near(self.rect, other.rect)
+    }
+}
+
 /// The control that had keyboard focus at capture time. UI Automation client objects are
 /// free-threaded, and both the capture and the replace thread run in the MTA.
 #[derive(Debug, Clone)]
-pub struct FocusedElement(IUIAutomationElement);
+pub struct FocusedElement {
+    element: IUIAutomationElement,
+    fingerprint: Option<Box<Fingerprint>>,
+    /// The control's own window, when it has one (classic Win32 controls do).
+    native_window: isize,
+}
+
+impl FocusedElement {
+    fn new(element: IUIAutomationElement) -> FocusedElement {
+        let fingerprint = Fingerprint::of(&element).map(Box::new);
+        // SAFETY: COM call on a live element.
+        let native_window = unsafe { element.CurrentNativeWindowHandle() }
+            .map(|h| h.0 as isize)
+            .unwrap_or(0);
+        FocusedElement {
+            element,
+            fingerprint,
+            native_window,
+        }
+    }
+
+    /// The window of a standard edit control (Edit, RichEdit, including Notepad's
+    /// RichEditD2DPT), which can be sent WM_PASTE instead of a simulated Ctrl+V.
+    pub fn edit_control(&self) -> Option<isize> {
+        let class = self.fingerprint.as_ref()?.class_name.to_ascii_lowercase();
+        let editable = class == "edit" || class.starts_with("richedit");
+        (editable && self.native_window != 0).then_some(self.native_window)
+    }
+}
 
 // SAFETY: UI Automation client interfaces are agile; they are only used from MTA threads.
 unsafe impl Send for FocusedElement {}
@@ -58,6 +136,9 @@ fn automation() -> Option<IUIAutomation> {
 /// Makes sure keyboard focus is back on the captured control before pasting. A window can be
 /// in front with focus elsewhere (e.g. a web view inside an Electron app gives focus back to
 /// the app's main view), and pasting there would put the text in the wrong field.
+///
+/// Apps often restore their own focus a moment after being activated (Teams does), so this
+/// first waits, then asks for focus, and accepts a recreated control by its fingerprint.
 pub fn restore_focus(element: &FocusedElement) -> Result<(), String> {
     let lost = || {
         "Typely could not put the cursor back in the original text field, so nothing was pasted. Use Copy instead.".to_owned()
@@ -70,22 +151,38 @@ pub fn restore_focus(element: &FocusedElement) -> Result<(), String> {
     };
     // SAFETY: COM calls on live interfaces from an MTA thread.
     let has_focus = || unsafe {
-        automation
-            .GetFocusedElement()
-            .and_then(|now| automation.CompareElements(&now, &element.0))
+        let Ok(now) = automation.GetFocusedElement() else {
+            return false;
+        };
+        if automation
+            .CompareElements(&now, &element.element)
             .map(|same| same.as_bool())
             .unwrap_or(false)
+        {
+            return true;
+        }
+        match (&element.fingerprint, Fingerprint::of(&now)) {
+            (Some(captured), Some(current)) => captured.matches(&current),
+            _ => false,
+        }
     };
-    if has_focus() {
+    let wait = |rounds: u32| {
+        for _ in 0..rounds {
+            if has_focus() {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(25));
+        }
+        false
+    };
+    // ~250 ms for the app to restore focus itself, then ~750 ms after asking for it.
+    if wait(10) {
         return Ok(());
     }
     // SAFETY: as above.
-    let _ = unsafe { element.0.SetFocus() };
-    for _ in 0..20 {
-        if has_focus() {
-            return Ok(());
-        }
-        std::thread::sleep(std::time::Duration::from_millis(15));
+    let _ = unsafe { element.element.SetFocus() };
+    if wait(30) {
+        return Ok(());
     }
     Err(lost())
 }
@@ -196,13 +293,13 @@ pub fn focused_selection() -> Outcome {
         else {
             return Outcome::Nothing {
                 rect,
-                element: Some(FocusedElement(element)),
+                element: Some(FocusedElement::new(element)),
             };
         };
         let Ok(ranges) = pattern.GetSelection() else {
             return Outcome::Nothing {
                 rect,
-                element: Some(FocusedElement(element)),
+                element: Some(FocusedElement::new(element)),
             };
         };
         let count = ranges.Length().unwrap_or(0);
@@ -222,13 +319,66 @@ pub fn focused_selection() -> Outcome {
         if text.trim().is_empty() {
             return Outcome::Nothing {
                 rect,
-                element: Some(FocusedElement(element)),
+                element: Some(FocusedElement::new(element)),
             };
         }
         Outcome::Selection {
             text,
             rect: selection_rect.or(rect),
-            element: FocusedElement(element),
+            element: FocusedElement::new(element),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn print(rect: Rect) -> Fingerprint {
+        Fingerprint {
+            process_id: 42,
+            control_type: 50004,
+            automation_id: "ckeditor".into(),
+            class_name: String::new(),
+            rect: Some(rect),
+        }
+    }
+
+    const AT: Rect = Rect {
+        left: 100,
+        top: 600,
+        right: 900,
+        bottom: 660,
+    };
+
+    #[test]
+    fn a_recreated_control_in_the_same_place_matches() {
+        let moved = Rect {
+            left: 102,
+            top: 598,
+            right: 901,
+            bottom: 662,
+        };
+        assert!(print(AT).matches(&print(moved)));
+    }
+
+    #[test]
+    fn another_field_does_not_match() {
+        let elsewhere = Rect {
+            left: 100,
+            top: 80,
+            right: 900,
+            bottom: 120,
+        };
+        assert!(!print(AT).matches(&print(elsewhere)));
+        let mut other_app = print(AT);
+        other_app.process_id = 7;
+        assert!(!print(AT).matches(&other_app));
+        let mut other_id = print(AT);
+        other_id.automation_id = "search".into();
+        assert!(!print(AT).matches(&other_id));
+        let mut no_rect = print(AT);
+        no_rect.rect = None;
+        assert!(!print(AT).matches(&no_rect));
     }
 }
