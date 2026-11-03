@@ -242,3 +242,13 @@ content.
 - **Telemetry**: none. Error reports are local logs the user can export.
 - **Accessibility & i18n of the UI**: RTL-aware rendering (`dir="auto"` on text areas,
   logical CSS properties).
+
+## 9. Latency path for local models (ADR-016)
+
+```
+shortcut / button ──► local rules (< 50 ms) ──► onLocalPreview → panel shows local fixes
+                     └► locally fixed text ──► warm gemma3:1b, plain-text output
+                                              └► onPartialText → panel streams AI text
+                                              └► final: diff-based explanations,
+                                                 local post-pass, guards, off-task rejection
+```

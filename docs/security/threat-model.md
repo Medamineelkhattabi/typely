@@ -76,6 +76,15 @@ webviews.
   never silent replacement.
 - Guards flag suspicious outputs (language drift, lost URLs/code, excessive rewriting on
   `fix`).
+- **Measured 2026-11-03:** gemma3:1b followed injected instructions with every prompt
+  wording tried. It wrote a poem, answered "Paris", replied "OK" to a fake `SYSTEM:` line,
+  and translated text it was asked to correct. Prompt wording is therefore not a defence
+  for small local models. The engine now **rejects** any correction whose output changes
+  the language or rewrites more than half the characters, and returns the deterministic
+  result instead (`ai_rejected`). All four real attacks were rejected; legitimate dense
+  corrections (Arabic hamza, English homophones) were not. Rewrite-type operations cannot
+  use this check (they change text by design), so they rely on the guards' warnings and
+  the user's review before _Replace_.
 
 ### T6 — Malicious or malformed provider responses
 

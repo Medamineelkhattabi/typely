@@ -41,6 +41,7 @@ async function main(): Promise<number> {
       to: { type: "string" },
       provider: { type: "string" },
       json: { type: "boolean", default: false },
+      stream: { type: "boolean", default: false },
       check: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -48,7 +49,7 @@ async function main(): Promise<number> {
   const [operationArg, ...textParts] = positionals;
   if (values.help || operationArg === undefined) {
     process.stdout.write(
-      `Usage: npm run typely -- <${OPERATIONS.join("|")}> [--mode local|ai|hybrid] [--lang fr] [--to en] [--json] [--check] "text"\n`,
+      `Usage: npm run typely -- <${OPERATIONS.join("|")}> [--mode local|ai|hybrid] [--lang fr] [--to en] [--json] [--check] [--stream] "text"\n`,
     );
     return values.help ? 0 : 2;
   }
@@ -120,6 +121,9 @@ async function main(): Promise<number> {
     }
     const mode: CorrectionMode | undefined =
       values.mode === undefined ? undefined : CorrectionModeSchema.parse(values.mode);
+    const started = performance.now();
+    let firstWordsMs: number | undefined;
+    let printed = "";
     const result = await engine.run(
       {
         operation: operation.data as Operation,
@@ -128,8 +132,30 @@ async function main(): Promise<number> {
         ...(values.lang === undefined ? {} : { language: values.lang }),
         ...(values.to === undefined ? {} : { target_language: values.to }),
       },
-      { signal: controller.signal },
+      {
+        signal: controller.signal,
+        ...(values.stream
+          ? {
+              onLocalPreview: (preview) =>
+                process.stderr.write(
+                  `[local ${Math.round(performance.now() - started)} ms] ${preview.corrected_text}\n`,
+                ),
+              onPartialText: (partial) => {
+                if (firstWordsMs === undefined) {
+                  firstWordsMs = Math.round(performance.now() - started);
+                  process.stderr.write(`[first words ${firstWordsMs} ms] `);
+                }
+                // Print only the new suffix; restart the line if a fallback provider took over.
+                if (partial.startsWith(printed))
+                  process.stderr.write(partial.slice(printed.length));
+                else process.stderr.write(`\n${partial}`);
+                printed = partial;
+              },
+            }
+          : {}),
+      },
     );
+    if (values.stream) process.stderr.write("\n");
     if (values.json) {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       return 0;

@@ -118,6 +118,28 @@ function merge(edits: readonly Edit[]): DiffSegment[] {
   return segments;
 }
 
+/**
+ * Character-level edit ratio (0 = identical, 1 = unrelated): the larger of characters
+ * removed and characters added, relative to the original length. Unlike the word-level
+ * ratio it treats "انا" → "أنا" or "tomorow" → "tomorrow" as one-character edits, which is
+ * what a correction is.
+ */
+export function charEditRatio(original: string, revised: string): number {
+  if (original === revised) return 0;
+  const a = Array.from(original);
+  const b = Array.from(revised);
+  if (a.length === 0) return 1;
+  const edits = myers(a, b);
+  if (edits === undefined) return 1;
+  let removed = 0;
+  let added = 0;
+  for (const edit of edits) {
+    if (edit.type === "delete") removed++;
+    else if (edit.type === "insert") added++;
+  }
+  return Math.min(1, Math.max(removed, added) / a.length);
+}
+
 /** Share of the original text that was deleted or replaced (0 = untouched, 1 = rewritten). */
 export function changeRatio(original: string, segments: readonly DiffSegment[]): number {
   if (original.length === 0) return segments.some((s) => s.type === "insert") ? 1 : 0;

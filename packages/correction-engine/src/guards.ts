@@ -2,7 +2,7 @@ import type { DiffSegment, Operation, ResultWarning } from "@typely/schemas";
 import { detectLanguage } from "./detect.ts";
 import type { LanguageRegistry } from "./languages/registry.ts";
 import type { OperationDefinition } from "./operations.ts";
-import { changeRatio } from "./text/diff.ts";
+import { charEditRatio } from "./text/diff.ts";
 import { findProtectedSpans } from "./text/protected.ts";
 
 const NUMBER = /\d+(?:[.,:/h]\d+)*/g;
@@ -68,7 +68,7 @@ export function runGuards(input: GuardInput, registry: LanguageRegistry): Result
   }
 
   if (operation.maxChangeRatio !== undefined && original.length >= 40) {
-    const ratio = changeRatio(original, input.changes);
+    const ratio = charEditRatio(original, corrected);
     if (ratio > operation.maxChangeRatio) {
       warnings.push({
         code: "excessive_changes",

@@ -36,9 +36,27 @@ export class DirectTransport implements Transport {
     this.#defaultTimeoutMs = options.defaultTimeoutMs ?? 45_000;
   }
 
-  async send(
+  send(
     endpointId: string,
     request: ProviderHttpRequest,
+    signal?: AbortSignal,
+  ): Promise<ProviderHttpResponse> {
+    return this.#execute(endpointId, request, undefined, signal);
+  }
+
+  stream(
+    endpointId: string,
+    request: ProviderHttpRequest,
+    onLine: (line: string) => void,
+    signal?: AbortSignal,
+  ): Promise<ProviderHttpResponse> {
+    return this.#execute(endpointId, request, onLine, signal);
+  }
+
+  async #execute(
+    endpointId: string,
+    request: ProviderHttpRequest,
+    onLine: ((line: string) => void) | undefined,
     signal?: AbortSignal,
   ): Promise<ProviderHttpResponse> {
     const endpoint = this.#endpoints.get(endpointId);
@@ -110,6 +128,16 @@ export class DirectTransport implements Transport {
       response.headers.forEach((value, name) => {
         responseHeaders[name.toLowerCase()] = value;
       });
+      if (onLine !== undefined && response.ok && response.body !== null) {
+        try {
+          await readLines(response.body, onLine);
+        } catch (error) {
+          // Errors thrown by the consumer (e.g. a ProviderError for an error line) pass through.
+          if (error instanceof ProviderError) throw error;
+          throw fail(error, "Failed reading stream");
+        }
+        return { status: response.status, headers: responseHeaders, body: undefined };
+      }
       let text: string;
       try {
         text = await response.text();
@@ -158,6 +186,30 @@ export class DirectTransport implements Transport {
         formFields[auth.name] = secret;
         return;
     }
+  }
+}
+
+async function readLines(
+  body: ReadableStream<Uint8Array>,
+  onLine: (line: string) => void,
+): Promise<void> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      for (let nl = buffer.indexOf("\n"); nl >= 0; nl = buffer.indexOf("\n")) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (line) onLine(line);
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) onLine(buffer.trim());
+  } finally {
+    reader.releaseLock();
   }
 }
 

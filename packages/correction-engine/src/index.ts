@@ -5,6 +5,7 @@ export {
   type CorrectionEngineOptions,
   endpointsFromSettings,
   LANGUAGETOOL_ENDPOINT_ID,
+  type LocalPreview,
   type ProviderTestResult,
   type RunOptions,
 } from "./engine.ts";
@@ -25,6 +26,7 @@ export {
   buildPrompt,
   buildRepairPrompt,
   chooseDelimiter,
+  cleanTextOutput,
   estimateOutputTokens,
   type PromptInput,
   type PromptProfile,
@@ -38,5 +40,5 @@ export {
   runLocalRules,
 } from "./rules/index.ts";
 export type { LocalRule, RuleContext, RuleMatch } from "./rules/types.ts";
-export { changeRatio, diffWords, tokenize } from "./text/diff.ts";
+export { changeRatio, charEditRatio, diffWords, tokenize } from "./text/diff.ts";
 export { findProtectedSpans, type ProtectedSpan } from "./text/protected.ts";

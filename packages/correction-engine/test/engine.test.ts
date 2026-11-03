@@ -50,11 +50,13 @@ const anthropicReply = (content: string): ProviderHttpResponse => ({
   },
 });
 
+// JSON output keeps these tests on the structured path; plain-text mode has its own tests.
 const localProvider = {
   id: "local",
   kind: "ollama",
   label: "Ollama",
   model: "llama-test",
+  output_format: "json",
 } as const;
 const cloudProvider = {
   id: "anthropic",
@@ -154,7 +156,7 @@ describe("CorrectionEngine — AI modes", () => {
       provider_id: "local",
       model: "llama-test",
       usage: { input_tokens: 100, output_tokens: 40 },
-      prompt_version: "fix-1",
+      prompt_version: "fix-2",
     });
     expect(result.warnings).toEqual([]);
     const body = calls[0]?.request.body as {
@@ -324,7 +326,9 @@ describe("CorrectionEngine — AI modes", () => {
     });
   });
 
-  it("surfaces guard and model warnings", async () => {
+  it("rejects a 'correction' that translated the text and keeps the local result", async () => {
+    const text =
+      "Nous devons revoir le plan de déploiement de la semaine prochaine avec toute l'équipe.";
     const { engine: e } = engine(
       { providers: [localProvider] },
       {
@@ -341,19 +345,37 @@ describe("CorrectionEngine — AI modes", () => {
           ),
       },
     );
+    const result = await e.run({ operation: "fix", text });
+    const codes = result.warnings.map((w) => w.code);
+    expect(result.corrected_text).toBe(text);
+    expect(result.confidence).toBe(0.6);
+    expect(codes).toEqual(
+      expect.arrayContaining(["ai_rejected", "low_confidence", "model_warning"]),
+    );
+    expect(result.warnings.find((w) => w.code === "ai_rejected")?.message).toContain("language");
+  });
+
+  it("surfaces guard warnings on rewrite operations without rejecting them", async () => {
+    const { engine: e } = engine(
+      { providers: [localProvider] },
+      {
+        local: () =>
+          ollamaReply(
+            JSON.stringify(
+              llm({
+                corrected_text:
+                  "We need to review the deployment plan for next week with the whole team.",
+              }),
+            ),
+          ),
+      },
+    );
     const result = await e.run({
-      operation: "fix",
+      operation: "rewrite",
       text: "Nous devons revoir le plan de déploiement de la semaine prochaine avec toute l'équipe.",
     });
-    const codes = result.warnings.map((w) => w.code);
-    expect(codes).toEqual(
-      expect.arrayContaining([
-        "language_changed",
-        "excessive_changes",
-        "low_confidence",
-        "model_warning",
-      ]),
-    );
+    expect(result.corrected_text).toContain("deployment plan");
+    expect(result.warnings.map((w) => w.code)).toContain("language_changed");
   });
 
   it("validates requests and size limits before any network call", async () => {

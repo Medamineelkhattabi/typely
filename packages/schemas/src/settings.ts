@@ -34,8 +34,9 @@ export const ProviderConfigSchema = z.strictObject({
   json_mode: JsonModeSchema.optional(),
   timeout_ms: z.number().int().positive().optional(),
   /**
-   * Local models (Ollama): seconds the model stays in memory after a request. Defaults to 0 —
-   * unload immediately — so Typely never holds gigabytes of RAM while idle.
+   * Local models (Ollama): seconds the model stays in memory after a request. Defaults to 300:
+   * follow-up corrections skip the ~2 s load, and memory is released after 5 idle minutes.
+   * 0 unloads immediately.
    */
   keep_alive_seconds: z.number().int().min(0).max(86_400).optional(),
   /**
@@ -45,6 +46,11 @@ export const ProviderConfigSchema = z.strictObject({
   thinking: z.boolean().optional(),
   /** Prompt size. Defaults to "compact" for local endpoints and "full" for cloud ones. */
   prompt_profile: z.enum(["full", "compact"]).optional(),
+  /**
+   * "text" asks for the bare result (fastest; explanations are derived from the diff and the
+   * local rules). Defaults to "text" for local endpoints and "json" for cloud ones.
+   */
+  output_format: z.enum(["json", "text"]).optional(),
 });
 export type ProviderConfig = z.output<typeof ProviderConfigSchema>;
 export type ProviderConfigInput = z.input<typeof ProviderConfigSchema>;

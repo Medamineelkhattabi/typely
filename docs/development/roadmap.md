@@ -50,13 +50,16 @@ Prerequisite: Rust toolchain + MSVC Build Tools (see setup.md). Move repo out of
 - [ ] Local AI: detect an installed Ollama (never bundle it), show its status, recommend `OLLAMA_IGPU_ENABLE=1` and `OLLAMA_NO_CLOUD=1`
 - [ ] Gate 1B-class local models to `fix`; other operations need the quality model or are labelled experimental
 - [ ] Show guard warnings (`language_changed`, `excessive_changes`, `protected_token_lost`) before _Replace_
-- [ ] Tune `excessive_changes` for short error-dense text and Arabic (false positives in the benchmark)
 - [ ] Decide on hint placement for the compact prompt (qwen3.5 echoed the hint block)
 - [x] Validate a 4B-class model on the iGPU: gemma3:4b, no damaging failures, ~17 s, 4.5 GB ([report](ollama-benchmark.md#gemma34b-validation-2026-11-03))
 - [ ] Two-tier local setup in the UI: gemma3:1b for `fix`, gemma3:4b for the other operations; 1B-only on ≤ 16 GB machines
 - [ ] Language-aware routing (send Arabic corrections to the quality model)
 - [ ] Measure dropping model-written explanations for local `fix` (estimated 4B: ~11–14 s instead of ~17 s)
-- [ ] 2-second target ([latency results](ollama-benchmark.md#latency-against-the-2-second-target-2026-11-03)): plain-text output mode for local `fix`, streaming into the panel, instant local-rule results first, and a warm-model policy (needs a product decision)
+- [x] 2-second target, engine side (ADR-016): 5-minute warm window, plain-text output for local models, local pre-pass, `onLocalPreview`, `onPartialText` streaming
+- [x] Off-task rejection for corrections (prompt-injection defence that works regardless of the prompt)
+- [x] `excessive_changes` now measured per character (no false positives on Arabic or dense fixes)
+- [ ] Desktop panel: show the local result at once, stream AI text, then the final result; event-based streaming in the Tauri transport
+- [ ] Re-measure end-to-end latency with the laptop idle (not charging, stray process stopped); evaluate a full-attention 1B model (e.g. llama3.2:1b, needs a download) for prompt-cache reuse
 - [ ] **MVP usability gate** before Phase 3
 
 ## Phase 3 — Browser extension

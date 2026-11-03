@@ -33,7 +33,9 @@ export class AnthropicAdapter implements ProviderAdapter {
     // Structured outputs via output_config.format (GA, no beta header). Older models that do
     // not support it can be configured with json_mode "none".
     const useSchema =
-      (this.config.json_mode ?? "json_schema") === "json_schema" && request.jsonSchema;
+      request.outputFormat !== "text" &&
+      (this.config.json_mode ?? "json_schema") === "json_schema" &&
+      request.jsonSchema;
     return {
       method: "POST",
       path: "/v1/messages",

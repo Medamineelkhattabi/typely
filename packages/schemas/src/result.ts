@@ -27,6 +27,7 @@ export const WARNING_CODES = [
   "languagetool_unavailable",
   "model_warning",
   "no_changes",
+  "ai_rejected",
 ] as const;
 export const WarningCodeSchema = z.enum(WARNING_CODES);
 export type WarningCode = z.infer<typeof WarningCodeSchema>;

@@ -291,6 +291,21 @@ describe("Gemini adapter", () => {
   });
 });
 
+describe("plain-text output on cloud adapters", () => {
+  it("drops every JSON mode when text is requested", () => {
+    const text = { ...request, outputFormat: "text" as const };
+    expect(
+      createAdapter(config({ id: "oa", kind: "openai", model: "m" })).buildCompletion(text).body,
+    ).not.toHaveProperty("response_format");
+    expect(
+      createAdapter(config({ id: "an", kind: "anthropic", model: "m" })).buildCompletion(text).body,
+    ).not.toHaveProperty("output_config");
+    expect(
+      createAdapter(config({ id: "ge", kind: "gemini", model: "m" })).buildCompletion(text).body,
+    ).toMatchObject({ generationConfig: {} });
+  });
+});
+
 describe("Ollama adapter", () => {
   const adapter = createAdapter(config({ id: "ol", kind: "ollama", model: "llama3.2" }));
 
@@ -320,12 +335,33 @@ describe("Ollama adapter", () => {
     expect(thinker.buildCompletion(request).body).toMatchObject({ think: true });
   });
 
-  it("unloads the model right after each request unless configured otherwise", () => {
-    expect(adapter.buildCompletion(request).body).toMatchObject({ keep_alive: 0 });
-    const warm = createAdapter(
-      config({ id: "ol", kind: "ollama", model: "x", keep_alive_seconds: 120 }),
+  it("keeps the model warm for 5 minutes by default and can unload immediately", () => {
+    expect(adapter.buildCompletion(request).body).toMatchObject({ keep_alive: "300s" });
+    const cold = createAdapter(
+      config({ id: "ol", kind: "ollama", model: "x", keep_alive_seconds: 0 }),
     );
-    expect(warm.buildCompletion(request).body).toMatchObject({ keep_alive: "120s" });
+    expect(cold.buildCompletion(request).body).toMatchObject({ keep_alive: 0 });
+  });
+
+  it("requests plain text without any JSON format, streamed on demand", () => {
+    const built = adapter.buildCompletion({ ...request, outputFormat: "text" }, { stream: true });
+    expect(built.body).not.toHaveProperty("format");
+    expect(built.body).toMatchObject({ stream: true });
+    expect(adapter.buildCompletion(request).body).toMatchObject({ stream: false });
+  });
+
+  it("parses stream lines: deltas, the final line, errors and truncation", () => {
+    const parse = adapter.parseStreamLine?.bind(adapter);
+    if (parse === undefined) throw new Error("Ollama adapter must stream");
+    expect(parse('{"message":{"content":"Bon"},"done":false}')).toEqual({ delta: "Bon" });
+    expect(
+      parse(
+        '{"model":"m","message":{"content":""},"done":true,"prompt_eval_count":5,"eval_count":2}',
+      ),
+    ).toEqual({ delta: "", final: { model: "m", usage: { inputTokens: 5, outputTokens: 2 } } });
+    expectProviderError(() => parse('{"error":"model crashed"}'), "server");
+    expectProviderError(() => parse('{"done":true,"done_reason":"length"}'), "truncated");
+    expectProviderError(() => parse("not json"), "invalid_response");
   });
 
   it("treats a remote Ollama server as cloud", () => {

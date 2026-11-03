@@ -3,6 +3,7 @@ import {
   type ChainResult,
   type CompletionRequest,
   complete,
+  completeStreaming,
   createAdapter,
   type EndpointDefinition,
   isLoopbackUrl,
@@ -48,13 +49,14 @@ import { parseLlmOutput } from "./parse.ts";
 import {
   buildPrompt,
   buildRepairPrompt,
+  cleanTextOutput,
   estimateOutputTokens,
   type PromptInput,
   type PromptProfile,
   stripEchoedDelimiters,
 } from "./prompts.ts";
 import { fixLocally, mergeIssues, runLocalRules } from "./rules/index.ts";
-import { diffWords } from "./text/diff.ts";
+import { charEditRatio, diffWords } from "./text/diff.ts";
 
 export const LANGUAGETOOL_ENDPOINT_ID = "languagetool";
 
@@ -69,6 +71,19 @@ export interface CorrectionEngineOptions {
 
 export interface RunOptions {
   signal?: AbortSignal;
+  /**
+   * Streams the model's text as it is generated (plain-text output only). Restarts from an
+   * empty string if a fallback provider takes over. The final result may still differ
+   * slightly: local rules run again on the complete text.
+   */
+  onPartialText?: (textSoFar: string, providerId: string) => void;
+  /** Called in hybrid mode with the deterministic correction before any model call (< 50 ms). */
+  onLocalPreview?: (preview: LocalPreview) => void;
+}
+
+export interface LocalPreview {
+  corrected_text: string;
+  explanation: ExplanationItem[];
 }
 
 export interface CheckOptions extends RunOptions {
@@ -96,7 +111,19 @@ interface AiOutcome {
   model: string;
   usage: Usage | undefined;
   repaired: boolean;
+  /** The model answered in plain text; explanations must be derived locally. */
+  textMode: boolean;
 }
+
+/** A correction rewriting more than half the characters is treated as off-task. */
+const MAX_CORRECTION_EDIT_RATIO = 0.5;
+/** Below this length a few legitimate fixes can exceed any ratio ("i" → "I"). */
+const MIN_REJECTION_LENGTH = 20;
+/** Same heuristic confidence as local mode without LanguageTool. */
+const LOCAL_ONLY_CONFIDENCE = 0.6;
+
+/** Plain-text answers carry no self-assessment; a neutral value keeps the schema honest. */
+const TEXT_MODE_CONFIDENCE = 0.7;
 
 /**
  * The shared correction engine used by the desktop app, the extension and the CLI.
@@ -205,6 +232,25 @@ export class CorrectionEngine {
         ? await this.#localFindings(request.text, resolved.language, options.signal)
         : { issues: [], layers: [], warnings: [] };
     warnings.push(...findings.warnings);
+    // Hybrid correction: the deterministic fixes are computed up front. They are shown at
+    // once (onLocalPreview) and, for plain-text models, applied before sending, so the
+    // model gets a shorter prompt (no hint list) and has fewer changes left to make.
+    const preview =
+      mode === "hybrid" && operation.id === "fix"
+        ? fixLocally(
+            request.text,
+            resolved.language,
+            this.registry.get(resolved.language),
+            { disabledRules: this.#disabledRules },
+            findings.issues,
+          )
+        : undefined;
+    if (preview !== undefined) {
+      options.onLocalPreview?.({
+        corrected_text: preview.text,
+        explanation: preview.applied.map(toExplanation),
+      });
+    }
 
     const promptInput: PromptInput = {
       operation,
@@ -226,11 +272,22 @@ export class CorrectionEngine {
     };
     // The prompt depends on the provider (compact for small local models), so it is built
     // per attempt rather than once for the whole chain.
-    const completionFor = (adapter: ProviderAdapter): CompletionRequest => ({
-      ...buildPrompt({ ...promptInput, profile: promptProfile(adapter) }, this.registry),
-      jsonSchema: { name: "typely_correction", schema: LLM_OUTPUT_JSON_SCHEMA },
-      suggestedMaxOutputTokens: estimateOutputTokens(request.text, operation),
-    });
+    const completionFor = (adapter: ProviderAdapter): CompletionRequest => {
+      const outputFormat = outputFormatFor(adapter);
+      const prefixed =
+        outputFormat === "text" && preview !== undefined ? { text: preview.text, hints: [] } : {};
+      return {
+        ...buildPrompt(
+          { ...promptInput, ...prefixed, profile: promptProfile(adapter), outputFormat },
+          this.registry,
+        ),
+        outputFormat,
+        ...(outputFormat === "json"
+          ? { jsonSchema: { name: "typely_correction", schema: LLM_OUTPUT_JSON_SCHEMA } }
+          : {}),
+        suggestedMaxOutputTokens: estimateOutputTokens(request.text, operation),
+      };
+    };
 
     const chain = new ProviderChain(adapters, {
       maxRetries: this.settings.limits.max_retries,
@@ -239,7 +296,13 @@ export class CorrectionEngine {
     let chainResult: ChainResult<AiOutcome>;
     try {
       chainResult = await chain.run(
-        (adapter, signal) => this.#completeAndParse(adapter, completionFor(adapter), signal),
+        (adapter, signal) =>
+          this.#completeAndParse(adapter, completionFor(adapter), {
+            input: request.text,
+            language: resolved.language,
+            signal,
+            onPartialText: options.onPartialText,
+          }),
         options.signal,
       );
     } catch (error) {
@@ -248,13 +311,32 @@ export class CorrectionEngine {
     const { value: outcome, adapter, attempts } = chainResult;
 
     let corrected = stripEchoedDelimiters(outcome.output.corrected_text, request.text);
-    const explanation: ExplanationItem[] = outcome.output.explanation
-      .filter((e) => e.original !== e.corrected)
-      .map((e) => ({ ...e, source: "ai" as const }));
+    const explanation: ExplanationItem[] = outcome.textMode
+      ? explainFromDiff(request.text, corrected, findings.issues)
+      : outcome.output.explanation
+          .filter((e) => e.original !== e.corrected)
+          .map((e) => ({ ...e, source: "ai" as const }));
     const layers: FindingSource[] = [...findings.layers, "ai"];
 
+    // A "correction" that changes the language or most of the characters is not one. Small
+    // models can be steered by instructions inside the text (prompt injection: "write a
+    // poem…") or simply go off-task; whatever the prompt says, discard such output and keep
+    // the deterministic result.
+    const rejection =
+      operation.id === "fix"
+        ? this.#rejectCorrection(request.text, corrected, resolved)
+        : undefined;
+    if (rejection !== undefined) {
+      corrected = preview?.text ?? request.text;
+      explanation.splice(0, explanation.length, ...(preview?.applied.map(toExplanation) ?? []));
+      warnings.push({
+        code: "ai_rejected",
+        message: `The AI suggestion was discarded because ${rejection}. Showing local corrections only.`,
+      });
+    }
+
     // Hybrid fix: deterministic rules get the last word on what they are certain about.
-    if (mode === "hybrid" && operation.id === "fix") {
+    if (mode === "hybrid" && operation.id === "fix" && rejection === undefined) {
       const profile = this.registry.get(resolved.language);
       const fixed = fixLocally(corrected, resolved.language, profile, {
         disabledRules: this.#disabledRules,
@@ -315,7 +397,7 @@ export class CorrectionEngine {
       corrected,
       resolved: finalLanguage,
       explanation,
-      confidence: outcome.output.confidence,
+      confidence: rejection === undefined ? outcome.output.confidence : LOCAL_ONLY_CONFIDENCE,
       warnings,
       changes,
       meta: {
@@ -329,6 +411,32 @@ export class CorrectionEngine {
       },
       started,
     });
+  }
+
+  /** Returns why an AI "correction" must be discarded, or undefined when it is plausible. */
+  #rejectCorrection(
+    original: string,
+    corrected: string,
+    resolved: ResolvedLanguage,
+  ): string | undefined {
+    if (original.trim().length < MIN_REJECTION_LENGTH) return undefined;
+    const drift = runGuards(
+      {
+        operation: getOperation("fix"),
+        original,
+        corrected,
+        sourceLanguage: resolved.language,
+        sourceConfidence: resolved.confidence,
+        changes: [],
+      },
+      this.registry,
+    ).some((w) => w.code === "language_changed");
+    if (drift) return "it changed the language of your text";
+    const ratio = charEditRatio(original, corrected);
+    if (ratio > MAX_CORRECTION_EDIT_RATIO) {
+      return `it rewrote ${Math.round(ratio * 100)}% of the characters`;
+    }
+    return undefined;
   }
 
   /** "Test connection": lists models with the stored credentials. Sends no user text. */
@@ -353,13 +461,54 @@ export class CorrectionEngine {
   async #completeAndParse(
     adapter: ProviderAdapter,
     request: CompletionRequest,
-    signal?: AbortSignal,
+    context: {
+      input: string;
+      language: string;
+      signal: AbortSignal | undefined;
+      onPartialText: RunOptions["onPartialText"];
+    },
   ): Promise<AiOutcome> {
+    const { signal, onPartialText } = context;
+    if (request.outputFormat === "text") {
+      const response =
+        onPartialText === undefined
+          ? await complete(adapter, this.#transport, request, signal)
+          : await completeStreaming(
+              adapter,
+              this.#transport,
+              request,
+              (text) => onPartialText(cleanTextOutput(text, context.input), adapter.config.id),
+              signal,
+            );
+      const text = cleanTextOutput(response.text, context.input);
+      if (text.trim() === "") {
+        throw new ProviderError("invalid_response", adapter.config.id, "Empty response");
+      }
+      return {
+        output: {
+          corrected_text: text,
+          detected_language: context.language,
+          explanation: [],
+          confidence: TEXT_MODE_CONFIDENCE,
+          warnings: [],
+        },
+        model: response.model,
+        usage: toUsage(response.usage),
+        repaired: false,
+        textMode: true,
+      };
+    }
     const first = await complete(adapter, this.#transport, request, signal);
     let usage = first.usage;
     let parsed = parseLlmOutput(first.text);
     if (parsed.ok)
-      return { output: parsed.value, model: first.model, usage: toUsage(usage), repaired: false };
+      return {
+        output: parsed.value,
+        model: first.model,
+        usage: toUsage(usage),
+        repaired: false,
+        textMode: false,
+      };
 
     const repairPrompt = buildRepairPrompt(first.text, parsed.problem);
     const second = await complete(
@@ -377,7 +526,13 @@ export class CorrectionEngine {
         `Unusable response: ${parsed.problem}`,
       );
     }
-    return { output: parsed.value, model: second.model, usage: toUsage(usage), repaired: true };
+    return {
+      output: parsed.value,
+      model: second.model,
+      usage: toUsage(usage),
+      repaired: true,
+      textMode: false,
+    };
   }
 
   #chainAdapters(operation: Operation, override: string | undefined): ProviderAdapter[] {
@@ -528,6 +683,44 @@ export function endpointsFromSettings(
 
 function promptProfile(adapter: ProviderAdapter): PromptProfile {
   return adapter.config.prompt_profile ?? (adapter.isLocal ? "compact" : "full");
+}
+
+function outputFormatFor(adapter: ProviderAdapter): "json" | "text" {
+  return adapter.config.output_format ?? (adapter.isLocal ? "text" : "json");
+}
+
+/**
+ * Explanations for plain-text answers: one item per changed fragment of the diff, reusing
+ * the message and category of a local finding on the same fragment when there is one.
+ */
+function explainFromDiff(
+  original: string,
+  corrected: string,
+  hints: readonly GrammarIssue[],
+): ExplanationItem[] {
+  const segments = diffWords(original, corrected);
+  const items: ExplanationItem[] = [];
+  for (let i = 0; i < segments.length && items.length < 20; i++) {
+    const segment = segments[i];
+    if (segment === undefined || segment.type === "equal") continue;
+    const next = segments[i + 1];
+    const removed = segment.type === "delete" ? segment.text : "";
+    const added =
+      segment.type === "insert" ? segment.text : next?.type === "insert" ? next.text : "";
+    if (segment.type === "delete" && next?.type === "insert") i++;
+    if (removed.trim() === "" && added.trim() === "") continue;
+    const hint = hints.find(
+      (h) => original.slice(h.offset, h.offset + h.length).trim() === removed.trim(),
+    );
+    items.push({
+      original: removed.trim(),
+      corrected: added.trim(),
+      reason: hint?.message ?? "Suggested change",
+      category: hint?.category ?? "other",
+      source: "ai",
+    });
+  }
+  return items;
 }
 
 function toExplanation({

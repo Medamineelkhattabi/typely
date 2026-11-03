@@ -178,6 +178,8 @@ Rule messages for shared rules are currently English; UIs will localise them by
 
 ## ADR-015 — Local-model policy
 
+Status: accepted; the keep-alive part is superseded by ADR-016 (5-minute warm window).
+
 **Context.** The Ollama benchmark
 ([ollama-benchmark.md](../development/ollama-benchmark.md)) on the reference laptop
 (i7-1355U, Iris Xe) found:
@@ -197,3 +199,24 @@ fallback chain.
 - Corrections are 2.5–3× faster and repeatable.
 - Typely holds no model memory while idle; every request pays the load time (~2–3 s with a 1B model).
 - 1–2B local models are limited to simple corrections; see roadmap gating.
+
+---
+
+## ADR-016 — Warm local model, plain-text output, streaming (2-second target)
+
+**Context.** The user set a 2-second response target. Measurements on the reference laptop
+([ollama-benchmark.md](../development/ollama-benchmark.md#latency-against-the-2-second-target-2026-11-03)):
+- loading gemma3:1b alone takes 2.2 s, so a cold request can never meet the target;
+- JSON output with explanations doubles or triples generation time.
+
+**Decision** (user-approved 2026-11-03):
+- **Warm window:** Ollama keeps the model for **5 minutes** after the last request (`keep_alive_seconds` default 300; 0 restores immediate unload). Still nothing is loaded at startup or by inline checks.
+- **Plain-text output:** local providers default to `output_format: "text"`. The model returns only the resulting text; the engine cleans it, derives explanations from its own diff, and reuses local-rule messages and categories where the fragments match. Cloud providers keep JSON.
+- **Local pre-pass:** in hybrid correction, the deterministic fixes are applied before the text is sent to a plain-text model (no hint list, shorter prompt), and are reported immediately through `onLocalPreview` (< 50 ms).
+- **Streaming:** `onPartialText` streams the model's text. `Transport.stream` is optional, and `DirectTransport` implements it for NDJSON. The Tauri transport will need an event-based equivalent in Phase 2.
+- **Off-task rejection** (see T5 in the threat model): for corrections, output that changes the language or rewrites more than half the characters is discarded in favour of the local result (`ai_rejected` warning).
+
+**Consequences.**
+- Repeat corrections within 5 minutes skip the load. Up to ~1.4 GB (1B) stays resident while warm, at ~0% CPU.
+- Whether 2 s is met depends on message length and on the laptop's power and thermal state. See the measurements below.
+- gemma3 uses sliding-window attention, so Ollama cannot reuse a partially matching cached prompt: instructions are re-read on every request.

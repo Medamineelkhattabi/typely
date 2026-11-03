@@ -35,7 +35,9 @@ export class OpenAiAdapter implements ProviderAdapter {
 
   buildCompletion(request: CompletionRequest): ProviderHttpRequest {
     const jsonMode =
-      this.config.json_mode ?? (this.kind === "openai" ? "json_schema" : "json_object");
+      request.outputFormat === "text"
+        ? "none"
+        : (this.config.json_mode ?? (this.kind === "openai" ? "json_schema" : "json_object"));
     let responseFormat: unknown;
     if (jsonMode === "json_schema" && request.jsonSchema !== undefined) {
       responseFormat = {

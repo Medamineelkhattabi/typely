@@ -17,6 +17,37 @@ export interface PromptInput {
    * token costs CPU time and verbose explanations dominate generation time.
    */
   profile?: PromptProfile;
+  /**
+   * "text": the model returns only the resulting text — about half the output tokens of JSON,
+   * which is what brings a small local model under 2 seconds (see ADR-016).
+   */
+  outputFormat?: "json" | "text";
+}
+
+const TEXT_OUTPUT_INSTRUCTION =
+  "Reply with the resulting text only: no quotes, no tags, no explanations, no preamble.";
+
+/** Lead-in lines small models sometimes add despite instructions. */
+const PREAMBLE =
+  /^(?:here(?: is|'s)|sure[,!]|voici|bien sûr|corrected text|texte corrigé|النص المصحح)[^\n]*:\s*\n/iu;
+
+/**
+ * Turns a plain-text model answer into the replacement text: removes fences, echoed tags,
+ * a chatty lead-in line and wrapping quotes, and restores the input's surrounding
+ * whitespace so replacing a selection does not eat spaces or line breaks.
+ */
+export function cleanTextOutput(output: string, input: string): string {
+  let text = output.trim();
+  const fenced = /^```[a-z]*\n([\s\S]*?)\n?```$/i.exec(text);
+  if (fenced?.[1] !== undefined) text = fenced[1].trim();
+  text = stripEchoedDelimiters(text, input).trim();
+  text = text.replace(PREAMBLE, "").trim();
+  const quoted = /^(["«“])([\s\S]*)(["»”])$/u.exec(text);
+  if (quoted?.[2] !== undefined && !/^["«“]/u.test(input.trim())) text = quoted[2].trim();
+  if (text === "") return "";
+  const leading = /^\s*/.exec(input)?.[0] ?? "";
+  const trailing = /\s*$/.exec(input)?.[0] ?? "";
+  return `${leading}${text}${trailing}`;
 }
 
 export type PromptProfile = "full" | "compact";
@@ -86,6 +117,10 @@ export function buildPrompt(input: PromptInput, registry: LanguageRegistry): Bui
   ].filter(Boolean);
   if (contextLines.length > 0) sections.push(`Context: ${contextLines.join(" ")}`);
 
+  if (input.outputFormat === "text") {
+    sections.push(TEXT_OUTPUT_INSTRUCTION);
+    return { system: sections.join("\n\n"), user: buildUserMessage(text, hints) };
+  }
   sections.push(
     [
       "Answer with a single JSON object and nothing else (no Markdown fences), matching this JSON Schema:",
@@ -112,7 +147,7 @@ export function buildPrompt(input: PromptInput, registry: LanguageRegistry): Bui
 function buildCompactPrompt(input: PromptInput, registry: LanguageRegistry): BuiltPrompt {
   const { operation, text, language, targetLanguage, context, hints } = input;
   const lines = [
-    `You are Typely, a writing assistant. Task: ${operation.instructions}`,
+    `You are Typely, a writing assistant. Task: ${operation.compactInstructions ?? operation.instructions}`,
     COMPACT_RULES,
   ];
   if (targetLanguage === undefined) lines.push("Answer in the same language as the text.");
@@ -121,13 +156,17 @@ function buildCompactPrompt(input: PromptInput, registry: LanguageRegistry): Bui
   if (context !== undefined && CONTEXT_HINTS[context.kind]) lines.push(CONTEXT_HINTS[context.kind]);
   if (context?.targetAi !== undefined)
     lines.push(`The prompt is intended for: ${context.targetAi}.`);
-  lines.push(
-    'Reply with JSON only: {"corrected_text": full result, "detected_language": ISO 639-1 code, ' +
-      '"explanation": list, "confidence": 0 to 1, "warnings": list of strings}.',
-    operation.explanationStyle === "all"
-      ? 'explanation: at most 3 key changes as {"original","corrected","reason","category"}, reason under 8 words.'
-      : "explanation: [] (empty list).",
-  );
+  if (input.outputFormat === "text") {
+    lines.push(TEXT_OUTPUT_INSTRUCTION);
+  } else {
+    lines.push(
+      'Reply with JSON only: {"corrected_text": full result, "detected_language": ISO 639-1 code, ' +
+        '"explanation": list, "confidence": 0 to 1, "warnings": list of strings}.',
+      operation.explanationStyle === "all"
+        ? 'explanation: at most 3 key changes as {"original","corrected","reason","category"}, reason under 8 words.'
+        : "explanation: [] (empty list).",
+    );
+  }
   return { system: lines.join("\n"), user: buildUserMessage(text, hints) };
 }
 

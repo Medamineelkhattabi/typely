@@ -40,6 +40,17 @@ export interface Transport {
     request: ProviderHttpRequest,
     signal?: AbortSignal,
   ): Promise<ProviderHttpResponse>;
+  /**
+   * Optional streaming variant for newline-delimited responses (e.g. Ollama NDJSON). For a
+   * 2xx response every line is passed to `onLine` and the returned body is undefined; any
+   * other status returns the full body, exactly like `send`.
+   */
+  stream?(
+    endpointId: string,
+    request: ProviderHttpRequest,
+    onLine: (line: string) => void,
+    signal?: AbortSignal,
+  ): Promise<ProviderHttpResponse>;
 }
 
 export interface CompletionRequest {
@@ -49,6 +60,16 @@ export interface CompletionRequest {
   jsonSchema?: { name: string; schema: Readonly<Record<string, unknown>> };
   /** Output budget estimated by the caller; used where the API requires a limit. */
   suggestedMaxOutputTokens: number;
+  /** "text" asks for the bare result (no JSON mode); defaults to "json". */
+  outputFormat?: "json" | "text";
+}
+
+/** One parsed line of a streamed completion. */
+export interface StreamEvent {
+  /** Newly generated text (may be empty). */
+  delta: string;
+  /** Present on the final line. */
+  final?: Omit<CompletionResponse, "text">;
 }
 
 export interface TokenUsage {
@@ -70,8 +91,10 @@ export interface ProviderAdapter {
   readonly auth: AuthScheme;
   /** True when the endpoint is on the loopback interface (text never leaves the machine). */
   readonly isLocal: boolean;
-  buildCompletion(request: CompletionRequest): ProviderHttpRequest;
+  buildCompletion(request: CompletionRequest, options?: { stream?: boolean }): ProviderHttpRequest;
   parseCompletion(response: ProviderHttpResponse): CompletionResponse;
+  /** Implemented by adapters that support streaming; throws ProviderError on error lines. */
+  parseStreamLine?(line: string): StreamEvent;
   buildListModels(): ProviderHttpRequest;
   parseListModels(response: ProviderHttpResponse): string[];
 }

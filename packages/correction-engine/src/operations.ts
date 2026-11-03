@@ -6,6 +6,8 @@ export interface OperationDefinition {
   /** Bumped whenever the instructions change, recorded in every result. */
   promptVersion: string;
   instructions: string;
+  /** Shorter wording for the compact (local-model) prompt; every token costs latency there. */
+  compactInstructions?: string;
   /** "all" = list every change; "main" = summarise the most important changes. */
   explanationStyle: "all" | "main";
   /** Above this share of changed text, the over-editing guard warns. */
@@ -18,7 +20,7 @@ const definitions: Record<Operation, OperationDefinition> = {
   fix: {
     id: "fix",
     label: "Correct",
-    promptVersion: "fix-1",
+    promptVersion: "fix-2",
     explanationStyle: "all",
     maxChangeRatio: 0.35,
     outputFactor: 1.1,
@@ -26,6 +28,9 @@ const definitions: Record<Operation, OperationDefinition> = {
       "Correct spelling, grammar, punctuation, capitalisation, agreement, verb conjugation and typos. " +
       "Make the minimum number of changes: do not rephrase, reorder, change word choice, tone or style when " +
       "the original is correct. If the text has no errors, return it unchanged with an empty explanation.",
+    compactInstructions:
+      "Correct spelling, grammar, punctuation, capitalisation, agreement, conjugation and typos with " +
+      "minimal changes. Keep the wording, tone and style. Return correct text unchanged.",
   },
   rewrite: {
     id: "rewrite",

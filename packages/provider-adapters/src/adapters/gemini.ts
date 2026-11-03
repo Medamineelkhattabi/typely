@@ -41,7 +41,9 @@ export class GeminiAdapter implements ProviderAdapter {
     const generationConfig = {
       ...optional(
         "responseMimeType",
-        (this.config.json_mode ?? "json_object") === "none" ? undefined : "application/json",
+        request.outputFormat === "text" || (this.config.json_mode ?? "json_object") === "none"
+          ? undefined
+          : "application/json",
       ),
       ...optional("temperature", this.config.temperature),
       ...optional("maxOutputTokens", this.config.max_output_tokens),
