@@ -101,8 +101,11 @@ Through the panel in Notepad, with LanguageTool installed portably and turned on
   2.4 s including the model. Replace pasted it (read back from the window).
 - French ("Il faut que tu vien demain, je les ai vu a la gare.") first showed only "à": two
   correct fixes 18 characters apart were held back as "conflicting". The conflict check now
-  only covers adjacent words; through the engine with the real server it gives "viens",
-  "vus" and "à". The panel run for French after that change is still to be repeated.
+  only covers adjacent words. In the panel it then still missed "viens": Windows' French spell
+  checker flagged "vien" first as an uncertain suggestion, which hid LanguageTool's clear fix.
+  Overlapping findings now prefer a clear fix over a suggestion. Re-run in the panel:
+  "Il faut que tu viens demain, je les ai vu à la gare." ("vu" is left: LanguageTool offers
+  "vus" or "vues", which needs a human).
 
 ## Browser (user test, 2026-11-03, after the focus fix)
 

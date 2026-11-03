@@ -35,6 +35,7 @@ export {
 export {
   applyFixes,
   fixLocally,
+  isApplicable,
   type LocalFixResult,
   mergeIssues,
   runLocalRules,

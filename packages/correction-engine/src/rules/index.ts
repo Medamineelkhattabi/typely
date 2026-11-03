@@ -47,7 +47,16 @@ export function runLocalRules(
   return accepted.sort((a, b) => a.offset - b.offset);
 }
 
-/** Merges issue lists, keeping the first issue when spans overlap. */
+/** Whether an issue would be applied automatically (one replacement, not held back). */
+export function isApplicable(issue: GrammarIssue): boolean {
+  return issue.replacements.length === 1 && issue.auto_fix !== false;
+}
+
+/**
+ * Merges issue lists. When spans overlap the first issue is kept, unless it is only a
+ * suggestion and the second is a clear fix: an uncertain spelling suggestion for "vien"
+ * must not hide LanguageTool's grammar fix "viens".
+ */
 export function mergeIssues(
   primary: readonly GrammarIssue[],
   secondary: readonly GrammarIssue[],
@@ -55,8 +64,13 @@ export function mergeIssues(
   const merged = [...primary];
   for (const issue of secondary) {
     const end = issue.offset + issue.length;
-    if (!merged.some((m) => issue.offset < m.offset + m.length && end > m.offset))
+    const overlapping = merged.filter((m) => issue.offset < m.offset + m.length && end > m.offset);
+    if (overlapping.length === 0) {
       merged.push(issue);
+    } else if (isApplicable(issue) && overlapping.every((m) => !isApplicable(m))) {
+      for (const m of overlapping) merged.splice(merged.indexOf(m), 1);
+      merged.push(issue);
+    }
   }
   return merged.sort((a, b) => a.offset - b.offset);
 }

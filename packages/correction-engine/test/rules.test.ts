@@ -195,3 +195,28 @@ describe("issue utilities", () => {
     expect(result.applied).toHaveLength(1);
   });
 });
+
+describe("mergeIssues", () => {
+  const issue = (offset: number, length: number, replacements: string[], extra = {}) => ({
+    offset,
+    length,
+    message: "m",
+    category: "grammar" as const,
+    replacements,
+    source: "local" as const,
+    rule_id: "R",
+    severity: "error" as const,
+    ...extra,
+  });
+
+  it("keeps the first issue on overlap, unless it is only a suggestion and the second a fix", () => {
+    const suggestion = issue(12, 4, ["viens", "vient", "bien"]);
+    const fix = issue(12, 4, ["viens"], { source: "languagetool" });
+    expect(mergeIssues([suggestion], [fix])).toEqual([fix]);
+    const held = issue(12, 4, ["viens"], { auto_fix: false });
+    expect(mergeIssues([held], [fix])).toEqual([fix]);
+    const firstFix = issue(12, 4, ["viens"]);
+    expect(mergeIssues([firstFix], [issue(12, 4, ["vient"])])).toEqual([firstFix]);
+    expect(mergeIssues([suggestion], [issue(12, 4, ["a", "b"])])).toEqual([suggestion]);
+  });
+});
