@@ -405,6 +405,24 @@ export class CorrectionEngine {
       explanation.push(...spelled.applied.map(toExplanation));
       corrected = spelled.text;
     }
+    // A model can add errors of its own ("de son erreur" → "de sa erreur"): the final text
+    // goes through the rules and LanguageTool once more and their sure fixes are applied.
+    let finalFindings: LocalFindings | undefined;
+    if (
+      mode === "hybrid" &&
+      operation.id === "fix" &&
+      rejection === undefined &&
+      corrected !== request.text
+    ) {
+      const again = await this.#localFindings(corrected, resolved.language, options.signal);
+      const fixedAgain = applyFixes(corrected, again.issues);
+      for (const issue of fixedAgain.applied) {
+        const original = corrected.slice(issue.offset, issue.offset + issue.length);
+        explanation.push(toExplanation({ original, issue }));
+      }
+      if (fixedAgain.applied.length === 0) finalFindings = again;
+      corrected = fixedAgain.text;
+    }
     if (cleaned !== undefined && cleaned.applied.length > 0) {
       // Fixes made to the input before a rewrite are part of the result too.
       explanation.unshift(...cleaned.applied.map(toExplanation));
@@ -481,6 +499,7 @@ export class CorrectionEngine {
               findings.issues,
               resolved.language,
               options.signal,
+              finalFindings,
             ),
           }
         : {}),
@@ -773,10 +792,14 @@ export class CorrectionEngine {
     issues: readonly GrammarIssue[],
     language: string,
     signal?: AbortSignal,
+    /** Findings on `corrected` from the final pass, when it already made them. */
+    known?: LocalFindings,
   ): Promise<Suggestion[]> {
-    if (!issues.some((i) => i.replacements.length > 0 && !isApplicable(i))) return [];
-    if (corrected === original) return suggestionsFor(original, corrected, issues);
-    const again = await this.#localFindings(corrected, language, signal);
+    if (known === undefined) {
+      if (!issues.some((i) => i.replacements.length > 0 && !isApplicable(i))) return [];
+      if (corrected === original) return suggestionsFor(original, corrected, issues);
+    }
+    const again = known ?? (await this.#localFindings(corrected, language, signal));
     // Without LanguageTool the second time, its findings on the original are the better guide.
     const complete = !again.warnings.some((w) => w.code === "languagetool_unavailable");
     return complete

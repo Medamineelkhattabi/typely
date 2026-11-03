@@ -566,6 +566,29 @@ describe("CorrectionEngine — check and LanguageTool", () => {
     ]);
   });
 
+  it("fixes errors the model added, with the checker's sure fixes", async () => {
+    const { engine: e } = engine(
+      { providers: [localProvider], languagetool: lt },
+      {
+        languagetool: ltRules([[/\bsa erreur\b/u, ["son erreur"], "CAT_GRAMMAIRE", "SA_SON"]]),
+        local: () =>
+          ollamaReply(
+            JSON.stringify(
+              llm({
+                corrected_text: "Elle s'est rendu compte de sa erreur.",
+                detected_language: "fr",
+              }),
+            ),
+          ),
+      },
+    );
+    const result = await e.run({
+      operation: "fix",
+      text: "Elle s'est rendu compte de son erreure.",
+    });
+    expect(result.corrected_text).toBe("Elle s'est rendu compte de son erreur.");
+  });
+
   it("drops a suggestion that another fix has settled", async () => {
     const { engine: e } = engine(
       { default_mode: "local", languagetool: lt },

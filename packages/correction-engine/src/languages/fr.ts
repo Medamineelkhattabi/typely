@@ -1,4 +1,5 @@
 import { type LocalRule, matchAll } from "../rules/types.ts";
+import { renduCompte } from "./fr-participles.ts";
 import { frenchSubjunctive } from "./fr-subjunctive.ts";
 import type { LanguageProfile } from "./types.ts";
 
@@ -139,7 +140,7 @@ export const french: LanguageProfile = {
       category: "grammar",
     },
   ],
-  rules: [spaceBeforeDoublePunctuation, guillemetSpacing, frenchSubjunctive],
+  rules: [spaceBeforeDoublePunctuation, guillemetSpacing, frenchSubjunctive, renduCompte],
   promptGuidance:
     "Français : vérifier rigoureusement les accords (genre, nombre, participe passé avec être/avoir), " +
     "les conjugaisons, les homophones (a/à, ou/où, ces/ses, et/est, son/sont, -er/-é), les accents et la " +

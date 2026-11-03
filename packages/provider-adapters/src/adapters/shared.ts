@@ -22,7 +22,10 @@ export function ensureOk(providerId: string, response: ProviderHttpResponse): Js
   const { status, body } = response;
   if (status < 200 || status >= 300) {
     const detail = extractErrorMessage(body) ?? "no details";
-    throw new ProviderError(kindForStatus(status), providerId, `HTTP ${status}: ${detail}`, {
+    // Groq answers 400 "json_validate_failed" when the model's own JSON came out malformed:
+    // a generation accident, not a bad request, so another try usually works.
+    const kind = isGenerationFailure(body) ? "server" : kindForStatus(status);
+    throw new ProviderError(kind, providerId, `HTTP ${status}: ${detail}`, {
       status,
       ...optional("retryAfterMs", parseRetryAfter(response.headers["retry-after"])),
     });
@@ -33,6 +36,11 @@ export function ensureOk(providerId: string, response: ProviderHttpResponse): Js
     });
   }
   return body;
+}
+
+function isGenerationFailure(body: unknown): boolean {
+  const error = isObject(body) ? body["error"] : undefined;
+  return isObject(error) && error["code"] === "json_validate_failed";
 }
 
 export function invalid(providerId: string, message: string): ProviderError {

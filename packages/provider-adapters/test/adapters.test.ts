@@ -109,6 +109,17 @@ describe("OpenAI adapter", () => {
       () => adapter.parseCompletion(status(404, { error: { message: "no model" } })),
       "bad_request",
     );
+    // Groq: the model's JSON came out malformed; retrying usually works.
+    const malformed = expectProviderError(
+      () =>
+        adapter.parseCompletion(
+          status(400, {
+            error: { message: "Failed to validate JSON.", code: "json_validate_failed" },
+          }),
+        ),
+      "server",
+    );
+    expect(malformed.retryable).toBe(true);
     expectProviderError(() => adapter.parseCompletion(ok({ choices: [] })), "invalid_response");
   });
 

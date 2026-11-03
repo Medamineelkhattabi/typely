@@ -28,3 +28,16 @@ describe("French subjunctive (FR_SUBJONCTIF)", () => {
       expect(fix(text)).toBe(text);
   });
 });
+
+describe("se rendre compte (FR_RENDU_COMPTE)", () => {
+  it("keeps the participle invariable", () => {
+    expect(fix("Elle s'est rendue compte de son erreur.")).toBe(
+      "Elle s'est rendu compte de son erreur.",
+    );
+    expect(fix("Nous nous sommes rendus compte du problème.")).toBe(
+      "Nous nous sommes rendu compte du problème.",
+    );
+    for (const text of ["Elle s'est rendu compte de son erreur.", "Elle est rendue à Paris."])
+      expect(fix(text)).toBe(text);
+  });
+});

@@ -71,6 +71,7 @@ async function main() {
       "key-file": { type: "string" },
       "key-name": { type: "string" },
       delay: { type: "string", default: "0" },
+      timeout: { type: "string", default: "120000" },
     },
   });
   const cloud = values.kind !== "ollama";
@@ -96,7 +97,7 @@ async function main() {
               label: values.kind ?? "ollama",
               model: values.model ?? "gemma3:1b",
               consent_granted: cloud,
-              timeout_ms: 120_000,
+              timeout_ms: Number(values.timeout),
               ...(cloud ? {} : { keep_alive_seconds: 120 }),
               ...(values["base-url"] === undefined ? {} : { base_url: values["base-url"] }),
             },
