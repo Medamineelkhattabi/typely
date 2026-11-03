@@ -113,6 +113,10 @@ webviews.
   the same process before sending `Ctrl+V`; otherwise it aborts and offers Copy.
   Implemented; the check is repeated after the clipboard is prepared, and elevated targets
   are detected up front.
+- The focused control is recorded at capture (UI Automation) and must have keyboard focus
+  again before pasting: a window can come back with focus elsewhere (an Electron app gave
+  it to its chat box instead of an embedded web view). Typely calls `SetFocus` on it and
+  pastes nothing if that fails.
 
 ### T9 — Supply chain
 

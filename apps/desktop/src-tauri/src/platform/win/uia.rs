@@ -22,11 +22,72 @@ pub enum Outcome {
     Selection {
         text: String,
         rect: Option<Rect>,
+        element: FocusedElement,
     },
     /// No usable selection through UI Automation; `rect` is the focused control's bounds.
     Nothing {
         rect: Option<Rect>,
+        element: Option<FocusedElement>,
     },
+}
+
+/// The control that had keyboard focus at capture time. UI Automation client objects are
+/// free-threaded, and both the capture and the replace thread run in the MTA.
+#[derive(Debug, Clone)]
+pub struct FocusedElement(IUIAutomationElement);
+
+// SAFETY: UI Automation client interfaces are agile; they are only used from MTA threads.
+unsafe impl Send for FocusedElement {}
+// SAFETY: as above; the element is only read (compared, focused).
+unsafe impl Sync for FocusedElement {}
+
+fn automation() -> Option<IUIAutomation> {
+    // SAFETY: COM is initialised on the calling thread by `Com::init`.
+    unsafe {
+        let automation: IUIAutomation =
+            CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+        // A hung target app must not freeze Typely for long.
+        if let Ok(automation2) = automation.cast::<IUIAutomation2>() {
+            let _ = automation2.SetConnectionTimeout(1_000);
+            let _ = automation2.SetTransactionTimeout(1_000);
+        }
+        Some(automation)
+    }
+}
+
+/// Makes sure keyboard focus is back on the captured control before pasting. A window can be
+/// in front with focus elsewhere (e.g. a web view inside an Electron app gives focus back to
+/// the app's main view), and pasting there would put the text in the wrong field.
+pub fn restore_focus(element: &FocusedElement) -> Result<(), String> {
+    let lost = || {
+        "Typely could not put the cursor back in the original text field, so nothing was pasted. Use Copy instead.".to_owned()
+    };
+    let Some(_com) = Com::init() else {
+        return Err(lost());
+    };
+    let Some(automation) = automation() else {
+        return Err(lost());
+    };
+    // SAFETY: COM calls on live interfaces from an MTA thread.
+    let has_focus = || unsafe {
+        automation
+            .GetFocusedElement()
+            .and_then(|now| automation.CompareElements(&now, &element.0))
+            .map(|same| same.as_bool())
+            .unwrap_or(false)
+    };
+    if has_focus() {
+        return Ok(());
+    }
+    // SAFETY: as above.
+    let _ = unsafe { element.0.SetFocus() };
+    for _ in 0..20 {
+        if has_focus() {
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(15));
+    }
+    Err(lost())
 }
 
 struct Com;
@@ -103,22 +164,24 @@ fn range_rect(range: &IUIAutomationTextRange) -> Option<Rect> {
 
 pub fn focused_selection() -> Outcome {
     let Some(_com) = Com::init() else {
-        return Outcome::Nothing { rect: None };
+        return Outcome::Nothing {
+            rect: None,
+            element: None,
+        };
     };
     // SAFETY: COM is initialised on this thread; every interface is used while alive.
     unsafe {
-        let Ok(automation) =
-            CoCreateInstance::<_, IUIAutomation>(&CUIAutomation, None, CLSCTX_INPROC_SERVER)
-        else {
-            return Outcome::Nothing { rect: None };
+        let Some(automation) = automation() else {
+            return Outcome::Nothing {
+                rect: None,
+                element: None,
+            };
         };
-        // A hung target app must not freeze the shortcut for long.
-        if let Ok(automation2) = automation.cast::<IUIAutomation2>() {
-            let _ = automation2.SetConnectionTimeout(1_000);
-            let _ = automation2.SetTransactionTimeout(1_000);
-        }
         let Ok(element) = automation.GetFocusedElement() else {
-            return Outcome::Nothing { rect: None };
+            return Outcome::Nothing {
+                rect: None,
+                element: None,
+            };
         };
         if element
             .CurrentIsPassword()
@@ -131,10 +194,16 @@ pub fn focused_selection() -> Outcome {
         let Ok(pattern) =
             element.GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
         else {
-            return Outcome::Nothing { rect };
+            return Outcome::Nothing {
+                rect,
+                element: Some(FocusedElement(element)),
+            };
         };
         let Ok(ranges) = pattern.GetSelection() else {
-            return Outcome::Nothing { rect };
+            return Outcome::Nothing {
+                rect,
+                element: Some(FocusedElement(element)),
+            };
         };
         let count = ranges.Length().unwrap_or(0);
         let mut text = String::new();
@@ -151,11 +220,15 @@ pub fn focused_selection() -> Outcome {
             }
         }
         if text.trim().is_empty() {
-            return Outcome::Nothing { rect };
+            return Outcome::Nothing {
+                rect,
+                element: Some(FocusedElement(element)),
+            };
         }
         Outcome::Selection {
             text,
             rect: selection_rect.or(rect),
+            element: FocusedElement(element),
         }
     }
 }

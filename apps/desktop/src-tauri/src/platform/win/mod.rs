@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 use super::{Capture, CaptureError, CaptureMethod, Rect, Target};
 
+pub use uia::FocusedElement;
 pub use window::{activate, cursor_pos, monitor_at, total_memory_bytes};
 
 /// How long the source app gets to answer a simulated Ctrl+C.
@@ -26,19 +27,24 @@ pub fn capture_selection() -> Result<Capture, (CaptureError, Option<Target>)> {
     if pid == window::own_pid() {
         return Err((CaptureError::OwnWindow, None));
     }
-    let target = Target {
+    let mut target = Target {
         hwnd: hwnd.0 as isize,
         pid,
         process_name: window::process_name(pid),
+        element: None,
     };
-    let fail = |error: CaptureError| Err((error, Some(target.clone())));
     if window::is_elevated(pid) && !window::self_elevated() {
-        return fail(CaptureError::ElevatedTarget);
+        return Err((CaptureError::ElevatedTarget, Some(target)));
     }
 
     let hint = match uia::focused_selection() {
-        uia::Outcome::Password => return fail(CaptureError::PasswordField),
-        uia::Outcome::Selection { text, rect } => {
+        uia::Outcome::Password => return Err((CaptureError::PasswordField, Some(target))),
+        uia::Outcome::Selection {
+            text,
+            rect,
+            element,
+        } => {
+            target.element = Some(element);
             return Ok(Capture {
                 text,
                 anchor: rect.or_else(|| window::caret_rect(&target)),
@@ -46,7 +52,10 @@ pub fn capture_selection() -> Result<Capture, (CaptureError, Option<Target>)> {
                 method: CaptureMethod::UiAutomation,
             });
         }
-        uia::Outcome::Nothing { rect } => rect,
+        uia::Outcome::Nothing { rect, element } => {
+            target.element = element;
+            rect
+        }
     };
 
     match copy_selection() {
@@ -56,8 +65,8 @@ pub fn capture_selection() -> Result<Capture, (CaptureError, Option<Target>)> {
             target,
             method: CaptureMethod::Clipboard,
         }),
-        Ok(None) => fail(CaptureError::NoSelection),
-        Err(error) => fail(error),
+        Ok(None) => Err((CaptureError::NoSelection, Some(target))),
+        Err(error) => Err((error, Some(target))),
     }
 }
 
@@ -91,6 +100,9 @@ fn copy_selection() -> Result<Option<String>, CaptureError> {
 /// Pastes `text` over the selection in the recorded window, then restores the clipboard.
 pub fn replace_selection(target: &Target, text: &str) -> Result<(), String> {
     window::focus(target)?;
+    if let Some(element) = &target.element {
+        uia::restore_focus(element)?;
+    }
     input::wait_for_modifiers_release(Duration::from_millis(800));
     let owner = clipboard::Owner::new()?;
     let saved = clipboard::snapshot(&owner)?;

@@ -22,6 +22,9 @@ pub struct Target {
     pub hwnd: isize,
     pub pid: u32,
     pub process_name: Option<String>,
+    /// The control that had keyboard focus, when UI Automation could see it.
+    #[cfg(windows)]
+    pub element: Option<win::FocusedElement>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]

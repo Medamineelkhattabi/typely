@@ -35,6 +35,14 @@ about 205 MB private memory (GPU process 85 MB, browser 39 MB, two renderers 29 
 The shortcut needs no webview to be created, but the second renderer (the hidden settings
 window) could be created on demand to save ~30 MB.
 
+## Found by the user (2026-11-03)
+
+Testing a page shown in an Electron desktop app's embedded browser view:
+capture worked through UI Automation, but Replace pasted nowhere visible, because the
+re-activated window gave keyboard focus to its main view, not the embedded page. Replace now
+restores focus to the captured control (UI Automation `SetFocus`) and refuses to paste if
+it cannot. Re-test pending.
+
 ## Not verified yet
 
 - **Browser text fields (Edge/Chrome).** Not tested yet. To check: open any page with a
