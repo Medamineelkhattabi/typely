@@ -238,7 +238,7 @@ the full design is in [architecture.md](docs/architecture/architecture.md).
 
 </details>
 
-## 🛡️ Private by design
+## 🔐 Private by design
 
 > [!IMPORTANT]
 > By default **nothing leaves your computer**. Cloud AI needs two explicit switches: the
