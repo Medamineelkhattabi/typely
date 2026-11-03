@@ -17,6 +17,7 @@ were typing.
 [![Local first](https://img.shields.io/badge/privacy-local--first-2ea44f)](#-private-by-design)
 [![Tests](https://img.shields.io/badge/tests-199%20passing-2ea44f)](#-quality)
 [![Status](https://img.shields.io/badge/status-desktop%20MVP-orange)](docs/development/roadmap.md)
+[![License](https://img.shields.io/badge/license-proprietary-555)](LICENSE)
 
 <br />
 
@@ -302,7 +303,8 @@ docs/                  architecture, decisions, security, roadmap
 
 ## 🤝 Contributing and security
 
-Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). To report a
+Typely is proprietary software ([LICENSE](LICENSE)). The source is public to read;
+contributions are welcome under the terms in [CONTRIBUTING.md](CONTRIBUTING.md). To report a
 vulnerability privately, see [SECURITY.md](SECURITY.md).
 
 ---
@@ -311,6 +313,6 @@ vulnerability privately, see [SECURITY.md](SECURITY.md).
 
 **Typely**: fix it where you write it.
 
-© 2026 Mohamed Amine EL Khattabi. All rights reserved.
+© 2026 Mohamed Amine EL Khattabi. All rights reserved. Proprietary software; see [LICENSE](LICENSE).
 
 </div>

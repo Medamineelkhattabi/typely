@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Typely desktop app: the trusted executor for the shared correction engine"
 edition = "2024"
 rust-version = "1.88"
+license-file = "../../../LICENSE"
 publish = false
 
 [lib]

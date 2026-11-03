@@ -2,6 +2,15 @@
 
 Thanks for helping make writing better everywhere.
 
+## Licensing of contributions
+
+Typely is proprietary software (see [LICENSE](LICENSE)). By submitting a contribution
+(a pull request, patch or code in an issue), you confirm that you wrote it or have the
+right to submit it, and you grant the copyright holder a perpetual, worldwide,
+non-exclusive, royalty-free, irrevocable license to use, modify, sublicense and
+distribute it as part of Typely, including commercially. You keep the copyright in your
+contribution.
+
 ## Set up
 
 1. Install Node.js ≥ 24, and for the desktop app the Rust toolchain and MSVC Build Tools

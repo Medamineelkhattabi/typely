@@ -1,6 +1,7 @@
 {
   "name": "typely",
   "version": "0.1.0",
+  "license": "UNLICENSED",
   "private": true,
   "description": "TYPELY — AI-powered universal writing assistant",
   "type": "module",
