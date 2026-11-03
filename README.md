@@ -298,13 +298,16 @@ npm run tauri dev
 > for rewrites and translation.
 
 <details>
-<summary><b>Build the release executable</b></summary>
+<summary><b>Build the installer</b></summary>
 
 ```bash
 npm run tauri build
 ```
 
-The result is `target/release/typely.exe` (about 5 MB). There's no installer yet.
+The result is `target/release/bundle/nsis/Typely_0.1.0_x64-setup.exe` (about 2 MB). It installs
+for the current user, without administrator rights, and adds Typely to the Start menu. Quit it
+from the tray icon. The installer isn't code-signed yet, so Windows SmartScreen may warn about
+it.
 
 </details>
 
@@ -397,7 +400,8 @@ npm run check
 - [x] **Windows app**: shortcut, floating panel, Replace, settings, consent, keyring
 - [ ] **More apps verified**: Office, Teams, Edge/Chrome, administrator apps
 - [ ] **Browser extension** (Chrome, Edge): suggestions as you type, one-click fixes
-- [ ] **Installer** with code signing and automatic updates
+- [x] **Installer** for Windows, per user
+- [ ] **Code signing** and automatic updates
 
 The full checklist is in [roadmap.md](docs/development/roadmap.md).
 
