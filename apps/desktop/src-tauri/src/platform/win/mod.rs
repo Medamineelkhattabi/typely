@@ -2,6 +2,7 @@
 
 mod clipboard;
 mod input;
+mod spell;
 mod uia;
 mod window;
 
@@ -10,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use super::{Capture, CaptureError, CaptureMethod, Rect, Target};
 
+pub use spell::spell_check;
 pub use uia::FocusedElement;
 pub use window::{activate, cursor_pos, monitor_at, total_memory_bytes};
 

@@ -40,5 +40,19 @@ export {
   runLocalRules,
 } from "./rules/index.ts";
 export type { LocalRule, RuleContext, RuleMatch } from "./rules/types.ts";
+export {
+  type EditKind,
+  type SpellingOptions,
+  shouldCheck,
+  singleEdit,
+  spellingIssue,
+  stripAccents,
+} from "./spelling/policy.ts";
+export {
+  combineSpellers,
+  decodeWordList,
+  type Speller,
+  WordListSpeller,
+} from "./spelling/speller.ts";
 export { changeRatio, charEditRatio, diffWords, tokenize } from "./text/diff.ts";
 export { findProtectedSpans, type ProtectedSpan } from "./text/protected.ts";

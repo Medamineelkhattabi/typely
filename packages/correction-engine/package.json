@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./data/en-words.txt": "./data/en-words.txt"
   },
   "dependencies": {
     "@typely/provider-adapters": "0.1.0",

@@ -1,6 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { type AppSettings, AppSettingsSchema } from "./settings.ts";
+import type { WindowsSpellResult } from "./spelling.ts";
 import { type StreamMessage, type TauriBindings, TauriTransport } from "./tauri-transport.ts";
 
 /** Typed wrappers around the Rust commands. Which window may call which is set in capabilities. */
@@ -74,6 +75,10 @@ export interface CapturePayload {
   method?: "ui_automation" | "clipboard";
   can_replace: boolean;
 }
+
+/** Windows spell checker (local). No language tag when the language is not installed. */
+export const spellCheck = (text: string, language: string) =>
+  invoke<WindowsSpellResult>("spell_check", { text, language });
 
 export const panelReady = () => invoke<CapturePayload | null>("panel_ready");
 export const panelHide = () => invoke<void>("panel_hide");

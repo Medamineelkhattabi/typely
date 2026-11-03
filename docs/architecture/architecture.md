@@ -91,7 +91,9 @@ repeated words (with language-specific legitimate repeats such as French "nous n
 whitespace anomalies, spacing around punctuation (incl. French typography with narrow
 no-break spaces), sentence-start capitalisation with abbreviation exceptions, English
 standalone "i", curated misspelling lists, Arabic punctuation (`،` `؛` `؟`) and common
-Arabic phrase errors. Every rule skips protected spans. Offsets are **UTF-16 code-unit
+Arabic phrase errors, and spell checking (ADR-018): a bundled English word list plus the
+Windows spell checker for installed languages, applying only typo-shaped, unambiguous fixes.
+Every rule skips protected spans. Offsets are **UTF-16 code-unit
 indices**, matching DOM `Selection`/`Range` semantics in both surfaces.
 
 ### 3.5 Layer 2 — LanguageTool

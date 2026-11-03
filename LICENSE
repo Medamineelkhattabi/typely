@@ -23,5 +23,9 @@ PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FO
 CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 OR ITS USE.
 
+Third-party components included in this repository (such as the SCOWL word list) remain
+under their own licences, listed in THIRD_PARTY_NOTICES.md; this licence does not apply to
+them.
+
 For licensing enquiries, contact the copyright holder through
 https://github.com/Medamineelkhattabi.

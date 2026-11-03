@@ -90,9 +90,9 @@ pub fn restore_focus(element: &FocusedElement) -> Result<(), String> {
     Err(lost())
 }
 
-struct Com;
+pub(super) struct Com;
 impl Com {
-    fn init() -> Option<Com> {
+    pub(super) fn init() -> Option<Com> {
         // SAFETY: initialises COM for this (worker) thread; balanced in Drop.
         unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }
             .ok()

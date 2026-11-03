@@ -14,6 +14,7 @@ fn main() {
         "panel_hide",
         "panel_replace",
         "panel_copy",
+        "spell_check",
     ];
     tauri_build::try_build(
         tauri_build::Attributes::new()

@@ -56,7 +56,9 @@ import {
   stripEchoedDelimiters,
 } from "./prompts.ts";
 import { fixLocally, mergeIssues, runLocalRules } from "./rules/index.ts";
+import type { Speller } from "./spelling/speller.ts";
 import { charEditRatio, diffWords } from "./text/diff.ts";
+import { findProtectedSpans, overlapsAny } from "./text/protected.ts";
 
 export const LANGUAGETOOL_ENDPOINT_ID = "languagetool";
 
@@ -67,6 +69,12 @@ export interface CorrectionEngineOptions {
   registry?: LanguageRegistry;
   chain?: ProviderChainOptions;
   now?: () => number;
+  /**
+   * Local spell checker(s) for Layer 1 (e.g. the bundled English word list, or the OS spell
+   * checker). Their findings join the local rules; unambiguous fixes are applied like any
+   * local fix, before a model is involved.
+   */
+  speller?: Speller;
 }
 
 export interface RunOptions {
@@ -139,6 +147,7 @@ export class CorrectionEngine {
   readonly #chainOptions: ProviderChainOptions;
   readonly #now: () => number;
   readonly #disabledRules: ReadonlySet<string>;
+  readonly #speller: Speller | undefined;
 
   constructor(options: CorrectionEngineOptions) {
     this.settings = EngineSettingsSchema.parse(options.settings);
@@ -148,6 +157,7 @@ export class CorrectionEngine {
     this.#chainOptions = options.chain ?? {};
     this.#now = options.now ?? (() => performance.now());
     this.#disabledRules = new Set(this.settings.disabled_rules);
+    this.#speller = options.speller;
     const lt = this.settings.languagetool;
     this.#languageTool =
       lt?.enabled === true
@@ -575,13 +585,35 @@ export class CorrectionEngine {
     return isLocal || (this.settings.privacy.cloud_processing_allowed && consentGranted);
   }
 
+  /** Spell-checker findings outside protected spans. A failing speller never fails a run. */
+  async #spelling(text: string, language: string, signal?: AbortSignal): Promise<GrammarIssue[]> {
+    // "und" is passed on: a single word cannot be detected, and spellers decide themselves.
+    if (this.#speller === undefined) return [];
+    let issues: GrammarIssue[];
+    try {
+      issues = await this.#speller.check(text, language, signal);
+    } catch (error) {
+      if (signal?.aborted)
+        throw new EngineError("cancelled", "Request cancelled", { cause: error });
+      return [];
+    }
+    const spans = findProtectedSpans(text);
+    return issues.filter(
+      (i) =>
+        !this.#disabledRules.has(i.rule_id) && !overlapsAny(spans, i.offset, i.offset + i.length),
+    );
+  }
+
   async #localFindings(
     text: string,
     language: string,
     signal?: AbortSignal,
   ): Promise<LocalFindings> {
     const profile = this.registry.get(language);
-    const local = runLocalRules(text, language, profile, { disabledRules: this.#disabledRules });
+    const local = mergeIssues(
+      runLocalRules(text, language, profile, { disabledRules: this.#disabledRules }),
+      await this.#spelling(text, language, signal),
+    );
     const layers: FindingSource[] = ["local"];
     const warnings: ResultWarning[] = [];
     const lt = this.settings.languagetool;

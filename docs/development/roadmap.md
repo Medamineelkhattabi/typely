@@ -76,7 +76,7 @@ Prerequisite: Rust toolchain + MSVC Build Tools (see setup.md). Desktop app: [ap
 
 ## Phase 4 — Advanced capabilities
 
-- [ ] Richer local Layer 1 (Hunspell / Harper evaluation, licence review)
+- [~] Richer local Layer 1: spell checking done (bundled SCOWL English list + Windows spell checker for installed languages, ADR-018); grammar beyond the rules still open
 - [ ] Self-hosted LanguageTool guide (Docker) and settings UI
 - [ ] Translation UX, target-language memory per site/app
 - [ ] Prompt-improvement UX tuned for ChatGPT and Gemini

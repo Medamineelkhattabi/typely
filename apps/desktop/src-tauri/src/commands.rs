@@ -172,6 +172,21 @@ pub async fn provider_stream(
     result
 }
 
+/// Spell checks `text` with the Windows spell checker (local, no network). Returns no
+/// language tag when that language is not installed in Windows.
+#[tauri::command]
+pub async fn spell_check(
+    text: String,
+    language: String,
+) -> Result<crate::platform::SpellResult, String> {
+    if text.chars().count() > 20_000 {
+        return Err("Text too long to spell check".to_owned());
+    }
+    tauri::async_runtime::spawn_blocking(move || crate::platform::spell_check(&text, &language))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub fn provider_cancel(state: State<'_, AppState>, request_id: String) {
     state.inflight.cancel(&request_id);

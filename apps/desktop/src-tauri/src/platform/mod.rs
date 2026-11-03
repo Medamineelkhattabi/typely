@@ -7,6 +7,34 @@ mod win;
 #[cfg(windows)]
 pub use win::*;
 
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SpellAction {
+    /// The checker is sure of `replacement`.
+    Replace,
+    Suggest,
+    Delete,
+    None,
+}
+
+/// One misspelling found by the OS spell checker. Offsets are UTF-16 code units.
+#[derive(Debug, Clone, Serialize)]
+pub struct SpellError {
+    pub offset: u32,
+    pub length: u32,
+    pub action: SpellAction,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub replacement: Option<String>,
+    pub suggestions: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SpellResult {
+    /// The Windows language used, or none when that language is not installed.
+    pub language_tag: Option<String>,
+    pub errors: Vec<SpellError>,
+}
+
 /// A screen rectangle in physical pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rect {
@@ -126,6 +154,12 @@ mod unsupported {
     }
     pub fn activate(_: isize) -> bool {
         false
+    }
+    pub fn spell_check(_: &str, _: &str) -> Result<SpellResult, String> {
+        Ok(SpellResult {
+            language_tag: None,
+            errors: Vec::new(),
+        })
     }
 }
 #[cfg(not(windows))]

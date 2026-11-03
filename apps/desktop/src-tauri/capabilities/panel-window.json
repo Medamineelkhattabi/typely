@@ -13,6 +13,7 @@
     "allow-panel-ready",
     "allow-panel-hide",
     "allow-panel-replace",
-    "allow-panel-copy"
+    "allow-panel-copy",
+    "allow-spell-check"
   ]
 }

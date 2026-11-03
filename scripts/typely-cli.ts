@@ -13,8 +13,14 @@
  *   TYPELY_CLOUD_CONSENT   set to 1 to allow sending text to a non-local provider
  *   TYPELY_LANGUAGETOOL_URL optional LanguageTool server, e.g. http://localhost:8081
  */
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { CorrectionEngine, EngineError, endpointsFromSettings } from "@typely/correction-engine";
+import {
+  CorrectionEngine,
+  EngineError,
+  endpointsFromSettings,
+  WordListSpeller,
+} from "@typely/correction-engine";
 import { DirectTransport } from "@typely/provider-adapters";
 import {
   type CorrectionMode,
@@ -106,7 +112,14 @@ async function main(): Promise<number> {
     endpoints: endpointsFromSettings(settings),
     getSecret: (id) => (id === "cli" ? secret : undefined),
   });
-  const engine = new CorrectionEngine({ settings, transport });
+  // Bundled English word list (SCOWL); decoded on first use.
+  const speller = new WordListSpeller(() =>
+    readFileSync(
+      new URL("../packages/correction-engine/data/en-words.txt", import.meta.url),
+      "utf8",
+    ),
+  );
+  const engine = new CorrectionEngine({ settings, transport, speller });
   const controller = new AbortController();
   process.once("SIGINT", () => controller.abort());
 

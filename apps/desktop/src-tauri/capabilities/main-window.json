@@ -14,6 +14,7 @@
     "allow-provider-stream",
     "allow-provider-cancel",
     "allow-ollama-detect",
-    "allow-panel-copy"
+    "allow-panel-copy",
+    "allow-spell-check"
   ]
 }

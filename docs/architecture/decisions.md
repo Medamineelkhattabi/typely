@@ -252,3 +252,38 @@ to Phase 2.
 
 **Consequences.** A compromised webview can still change consent settings or send text to an
 endpoint the user configured, but it cannot read a key or move one to another host.
+
+---
+
+## ADR-018 — Local spell checking in Layer 1
+
+Status: accepted (2026-11-03).
+
+**Context.** A user's sentence kept the typo "imlpressive": gemma3:1b and gemma3:4b both
+returned it unchanged, and Layer 1 only knew a curated list of common misspellings. Clearer
+prompt wording did not help. A fix that depends on a model noticing is not dependable.
+
+**Decision.**
+- The engine accepts an optional `Speller`. Its findings join the local rules, so they show
+  in the instant preview and are applied before a plain-text model sees the text.
+- **English:** a bundled SCOWL word list (US and British spellings, 113 k words, 516 KB
+  front-coded, permissive licence; see THIRD_PARTY_NOTICES.md), decoded on first use.
+- **Other languages:** the Windows spell checker for the languages installed in Windows
+  (`spell_check` command, local).
+- **One policy for both** (`spellingIssue`), stricter than "one edit away". A fix is applied
+  automatically only when it is typo-shaped and unambiguous: two adjacent letters swapped, a
+  doubled letter added or dropped, a stray consonant next to a neighbouring key on QWERTY or
+  AZERTY (never the first or last letter), missing accents added, or Windows' own confident
+  replacement. Other candidates are suggested, never applied. Unknown words with no close
+  candidate (names, jargon) are left alone. Acronyms, mid-sentence capitalised words,
+  identifiers and, for the English list, accented words are not checked.
+
+**Consequences.**
+- On 20,000 words of this repository's docs and source, every automatic fix was a real typo;
+  jargon such as Ollama, keyring, rustup or kubectl was left alone.
+- English spell checking works without a Windows language pack. French and Arabic depend on
+  Windows having that language installed.
+- The first check after start-up takes ~70–120 ms to decode the list (~10 MB in memory);
+  later checks take under 1 ms.
+- Replaces the Phase 4 Hunspell/Harper evaluation for English. French and Arabic
+  dictionaries no longer need a licence review, as Windows provides them.

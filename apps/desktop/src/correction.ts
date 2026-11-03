@@ -2,8 +2,15 @@ import { CorrectionEngine } from "@typely/correction-engine";
 import type { CorrectionResult, Operation } from "@typely/schemas";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { describeError, isCancellation } from "./errors.ts";
-import { createTransport, getSettings, onSettingsChanged, type SettingsView } from "./ipc.ts";
+import {
+  createTransport,
+  getSettings,
+  onSettingsChanged,
+  type SettingsView,
+  spellCheck,
+} from "./ipc.ts";
 import { type AppSettings, usableProviders } from "./settings.ts";
+import { createSpeller } from "./spelling.ts";
 
 export type CorrectionState =
   | { status: "idle" }
@@ -43,6 +50,8 @@ export function useSettings(): {
 }
 
 const transport = createTransport();
+/** The word list is decoded on the first correction, not when the window loads. */
+const speller = createSpeller(spellCheck);
 
 /** Mode for a run: without a usable provider only the local rules can answer. */
 export function modeFor(settings: AppSettings) {
@@ -55,7 +64,7 @@ export function useCorrection(settings: AppSettings | undefined) {
     () =>
       settings === undefined
         ? undefined
-        : new CorrectionEngine({ settings: settings.engine, transport }),
+        : new CorrectionEngine({ settings: settings.engine, transport, speller }),
     [settings],
   );
   const [state, setState] = useState<CorrectionState>({ status: "idle" });

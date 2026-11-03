@@ -122,6 +122,7 @@ pub fn run() {
             commands::provider_request,
             commands::provider_stream,
             commands::provider_cancel,
+            commands::spell_check,
             ollama::ollama_detect,
             panel::panel_ready,
             panel::panel_hide,

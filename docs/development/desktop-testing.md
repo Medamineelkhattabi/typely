@@ -43,6 +43,16 @@ re-activated window gave keyboard focus to its main view, not the embedded page.
 restores focus to the captured control (UI Automation `SetFocus`) and refuses to paste if
 it cannot. Re-tested by the user after the fix: works.
 
+## Spell checking (2026-11-03, ADR-018)
+
+User report: "imlpressive" was not corrected (gemma3:1b and gemma3:4b both returned the text
+unchanged). After the local spell-check layer, in Notepad with the shortcut: the instant local
+fixes already show "impressive", and the final result explains it ("Spelling: imlpressive →
+impressive"). A one-word selection (language undetermined) is fixed too. The Windows spell
+checker was verified from Rust with French (`recu` → reçu, `etait` → était,
+`interessant` → intéressant); English uses the bundled list because no English Windows
+language pack is installed on this machine.
+
 ## Browser (user test, 2026-11-03, after the focus fix)
 
 From the diagnostics log (capture method, app, outcome):
