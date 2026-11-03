@@ -60,6 +60,7 @@ import { applyFixes, fixLocally, isApplicable, mergeIssues, runLocalRules } from
 import type { Speller } from "./spelling/speller.ts";
 import { charEditRatio, diffWords } from "./text/diff.ts";
 import { findProtectedSpans, overlapsAny } from "./text/protected.ts";
+import { keepApostrophes, keepRegister, keepSpacing } from "./text/style.ts";
 
 export const LANGUAGETOOL_ENDPOINT_ID = "languagetool";
 
@@ -233,7 +234,13 @@ export class CorrectionEngine {
         confidence: findings.layers.includes("languagetool") ? 0.8 : 0.6,
         warnings: [...warnings, ...findings.warnings],
         meta: { mode, layers: findings.layers, attempts: [] },
-        issues: findings.issues,
+        suggestions: await this.#suggestions(
+          request.text,
+          fixed.text,
+          findings.issues,
+          resolved.language,
+          options.signal,
+        ),
         started,
       });
     }
@@ -298,12 +305,17 @@ export class CorrectionEngine {
     // per attempt rather than once for the whole chain.
     const completionFor = (adapter: ProviderAdapter): CompletionRequest => {
       const outputFormat = outputFormatFor(adapter);
-      // Hints point into the original text, so they are dropped when the text was changed.
+      // The model gets the locally fixed text with the findings still open there ("Ils
+      // mange" → "Ils mangent" or "Il mange"): reading the whole sentence, it can pick the
+      // candidate that fits.
       const prefixed =
         outputFormat === "text" && preview !== undefined
-          ? { text: preview.text, hints: [] }
+          ? { text: preview.text, hints: openFindings(request.text, preview.text, findings.issues) }
           : cleaned !== undefined && cleaned.applied.length > 0
-            ? { text: cleaned.text, hints: [] }
+            ? {
+                text: cleaned.text,
+                hints: openFindings(request.text, cleaned.text, findings.issues),
+              }
             : {};
       return {
         ...buildPrompt(
@@ -340,6 +352,12 @@ export class CorrectionEngine {
     const { value: outcome, adapter, attempts } = chainResult;
 
     let corrected = stripEchoedDelimiters(outcome.output.corrected_text, request.text);
+    if (operation.id !== "translate") corrected = keepApostrophes(request.text, corrected);
+    if (operation.id === "fix") {
+      // Compared with the text the model was given, so local fixes in a reverted stretch stay.
+      const given = outcome.textMode && preview !== undefined ? preview.text : request.text;
+      corrected = keepSpacing(given, keepRegister(given, corrected));
+    }
     const explanation: ExplanationItem[] = outcome.textMode
       ? explainFromDiff(request.text, corrected, findings.issues)
       : outcome.output.explanation
@@ -366,6 +384,9 @@ export class CorrectionEngine {
 
     // Hybrid fix: deterministic rules get the last word on what they are certain about.
     if (mode === "hybrid" && operation.id === "fix" && rejection === undefined) {
+      // That includes the sure fixes made before the model, which it sometimes undoes
+      // ("ce point-là" back to "ce point là").
+      if (preview !== undefined) corrected = restoreFixes(request.text, corrected, preview.applied);
       const profile = this.registry.get(resolved.language);
       const fixed = fixLocally(corrected, resolved.language, profile, {
         disabledRules: this.#disabledRules,
@@ -452,7 +473,17 @@ export class CorrectionEngine {
       confidence: rejection === undefined ? outcome.output.confidence : LOCAL_ONLY_CONFIDENCE,
       warnings,
       changes,
-      ...(operation.id === "fix" ? { issues: findings.issues } : {}),
+      ...(operation.id === "fix"
+        ? {
+            suggestions: await this.#suggestions(
+              request.text,
+              corrected,
+              findings.issues,
+              resolved.language,
+              options.signal,
+            ),
+          }
+        : {}),
       meta: {
         mode,
         layers,
@@ -731,6 +762,28 @@ export class CorrectionEngine {
     }
   }
 
+  /**
+   * Findings left for the user to decide, located in the final text. A changed text is
+   * checked again, because another fix can settle a finding ("Mes amis est arrivés": once
+   * "sont" is in, "arrivés" is right) and the model may have fixed it already.
+   */
+  async #suggestions(
+    original: string,
+    corrected: string,
+    issues: readonly GrammarIssue[],
+    language: string,
+    signal?: AbortSignal,
+  ): Promise<Suggestion[]> {
+    if (!issues.some((i) => i.replacements.length > 0 && !isApplicable(i))) return [];
+    if (corrected === original) return suggestionsFor(original, corrected, issues);
+    const again = await this.#localFindings(corrected, language, signal);
+    // Without LanguageTool the second time, its findings on the original are the better guide.
+    const complete = !again.warnings.some((w) => w.code === "languagetool_unavailable");
+    return complete
+      ? suggestionsFor(corrected, corrected, again.issues)
+      : suggestionsFor(original, corrected, issues);
+  }
+
   #finish(parts: {
     operation: Operation;
     original: string;
@@ -740,8 +793,7 @@ export class CorrectionEngine {
     confidence: number;
     warnings: ResultWarning[];
     changes?: CorrectionResult["changes"];
-    /** Findings on the original text; those not applied become suggestions. */
-    issues?: readonly GrammarIssue[];
+    suggestions?: Suggestion[];
     meta: Omit<CorrectionResult["meta"], "duration_ms">;
     started: number;
   }): CorrectionResult {
@@ -755,9 +807,7 @@ export class CorrectionEngine {
       language_confidence: parts.resolved.confidence,
       corrected_text: parts.corrected,
       explanation: parts.explanation,
-      ...(parts.issues === undefined
-        ? {}
-        : { suggestions: suggestionsFor(parts.original, parts.corrected, parts.issues) }),
+      ...(parts.suggestions === undefined ? {} : { suggestions: parts.suggestions }),
       confidence: parts.confidence,
       warnings,
       changes: parts.changes ?? diffWords(parts.original, parts.corrected),
@@ -841,6 +891,7 @@ function suggestionsFor(
     if (issue.replacements.length === 0 || isApplicable(issue)) continue;
     const fragment = original.slice(issue.offset, issue.offset + issue.length);
     if (fragment.trim() === "" || !containsWord(corrected, fragment)) continue;
+    if (isNoisySpelling(issue, fragment)) continue;
     if (suggestions.some((s) => s.original === fragment)) continue;
     suggestions.push({
       original: fragment,
@@ -854,16 +905,80 @@ function suggestionsFor(
   return suggestions;
 }
 
-/** Whether `fragment` occurs in `text` not glued to other letters or digits. */
-function containsWord(text: string, fragment: string): boolean {
+/**
+ * LanguageTool's spelling candidates for a word it does not know are mostly noise ("npm" →
+ * NPM | PM, "runned" → dunned | gunned); Typely's own spell check handles typos. A short list
+ * for a real word is kept ("informations" → information).
+ */
+function isNoisySpelling(issue: GrammarIssue, fragment: string): boolean {
+  if (issue.source !== "languagetool" || issue.category !== "spelling") return false;
+  if (issue.replacements.length > 2) return true;
+  if (fragment.length <= 3) return true;
+  return issue.replacements.some((r) => r.toLowerCase() === fragment.toLowerCase());
+}
+
+/** Where `fragment` first occurs in `text` not glued to other letters or digits, or -1. */
+function wordIndex(text: string, fragment: string): number {
   const word = /[\p{L}\p{N}]/u;
   for (let i = text.indexOf(fragment); i !== -1; i = text.indexOf(fragment, i + 1)) {
     const before = text[i - 1];
     const after = text[i + fragment.length];
     if ((before === undefined || !word.test(before)) && (after === undefined || !word.test(after)))
-      return true;
+      return i;
   }
-  return false;
+  return -1;
+}
+
+const containsWord = (text: string, fragment: string) => wordIndex(text, fragment) !== -1;
+
+/**
+ * Puts back the sure fixes the model undid. Each fix is looked up with the words around it
+ * ("mal a la" for "a" → "à"), so a short word elsewhere in the text is never touched.
+ */
+export function restoreFixes(
+  original: string,
+  corrected: string,
+  applied: ReadonlyArray<{ original: string; issue: GrammarIssue }>,
+): string {
+  let text = corrected;
+  for (const { original: fragment, issue } of applied) {
+    const replacement = issue.replacements[0];
+    const end = issue.offset + issue.length;
+    // Only fixes found on the original text (later passes point into intermediate texts).
+    if (replacement === undefined || original.slice(issue.offset, end) !== fragment) continue;
+    const before = /\S+\s+$/u.exec(original.slice(0, issue.offset))?.[0] ?? "";
+    const after = /^\s+\S+/u.exec(original.slice(end))?.[0] ?? "";
+    if (before === "" && after === "") continue;
+    const undone = `${before}${fragment}${after}`;
+    const index = text.indexOf(undone);
+    if (index === -1 || text.includes(`${before}${replacement}${after}`)) continue;
+    text = `${text.slice(0, index)}${before}${replacement}${after}${text.slice(index + undone.length)}`;
+  }
+  return text;
+}
+
+/**
+ * Findings on `original` that were not applied and whose words are still in `text`, moved to
+ * their place there. Spelling candidates are left out: the model would copy them ("npm" →
+ * "NPM").
+ */
+function openFindings(
+  original: string,
+  text: string,
+  issues: readonly GrammarIssue[],
+): GrammarIssue[] {
+  const open: GrammarIssue[] = [];
+  for (const issue of issues) {
+    // Only real choices: a single held-back fix was held back for a reason ("très" →
+    // "vraiment" when the word order is what is wrong), and the model would copy it.
+    if (issue.replacements.length < 2 || isApplicable(issue) || issue.category === "spelling")
+      continue;
+    const fragment = original.slice(issue.offset, issue.offset + issue.length);
+    const offset = wordIndex(text, fragment);
+    if (fragment.trim() === "" || offset === -1) continue;
+    open.push({ ...issue, offset });
+  }
+  return open;
 }
 
 function toExplanation({

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { changeRatio, diffWords, findProtectedSpans, tokenize } from "../src/index.ts";
+import {
+  changeRatio,
+  diffWords,
+  findProtectedSpans,
+  keepApostrophes,
+  keepRegister,
+  keepSpacing,
+  tokenize,
+} from "../src/index.ts";
 
 const apply = (segments: ReturnType<typeof diffWords>, side: "original" | "revised") =>
   segments
@@ -76,5 +84,38 @@ describe("findProtectedSpans", () => {
 
   it("does not treat sentence punctuation as part of a URL", () => {
     expect(findProtectedSpans("Go to www.example.com.")[0]?.text).toBe("www.example.com");
+  });
+});
+
+describe("keepApostrophes / keepRegister", () => {
+  it("keeps the writer's apostrophe style", () => {
+    expect(keepApostrophes("I'll reply tonight.", "I’ll reply tonight.")).toBe(
+      "I'll reply tonight.",
+    );
+    expect(keepApostrophes("J’ai faim.", "J'ai faim, qu'il dit.")).toBe("J’ai faim, qu’il dit.");
+    expect(keepApostrophes("No apostrophe", "Model’s text")).toBe("Model's text");
+  });
+
+  it("puts back a switch between tu and vous, and only that", () => {
+    expect(
+      keepRegister(
+        "Est-ce que tu as reçu le fichier PDF ?",
+        "Est-ce que vous avez reçu le fichier PDF ?",
+      ),
+    ).toBe("Est-ce que tu as reçu le fichier PDF ?");
+    expect(
+      keepRegister(
+        "Je te retrouve à la gare demain à 9 h.",
+        "Je vous retrouve à la gare demain à 9h.",
+      ),
+    ).toBe("Je te retrouve à la gare demain à 9h.");
+    expect(keepRegister("Tu vien demain ?", "Tu viens demain ?")).toBe("Tu viens demain ?");
+  });
+
+  it("puts back changes that only move spaces", () => {
+    expect(keepSpacing("Rendez-vous à 9 h demain.", "Rendez-vous à 9h demain.")).toBe(
+      "Rendez-vous à 9 h demain.",
+    );
+    expect(keepSpacing("Il vien à 9 h.", "Il vient à 9h.")).toBe("Il vient à 9 h.");
   });
 });

@@ -516,33 +516,45 @@ describe("CorrectionEngine — check and LanguageTool", () => {
     expect(result.confidence).toBe(0.8);
   });
 
+  /** A LanguageTool stand-in that flags each pattern found in the text it is sent. */
+  const ltRules =
+    (rules: [RegExp, string[], string, string][]): Handler =>
+    (request) => {
+      const text = String((request.body as Record<string, unknown>)["text"]);
+      const matches = rules.flatMap(([pattern, replacements, categoryId, ruleId]) => {
+        const found = pattern.exec(text);
+        return found === null
+          ? []
+          : [
+              {
+                message: ruleId,
+                offset: found.index,
+                length: found[0].length,
+                replacements: replacements.map((value) => ({ value })),
+                rule: { id: ruleId, issueType: "grammar", category: { id: categoryId } },
+              },
+            ];
+      });
+      return { status: 200, headers: {}, body: { matches } };
+    };
+
   it("lists findings it could not decide as suggestions", async () => {
-    const text = "Il faut que tu vien demain, je les ai vu a la gare.";
-    const at = (fragment: string, replacements: string[], categoryId: string, ruleId: string) => ({
-      message: ruleId,
-      offset: text.indexOf(fragment),
-      length: fragment.length,
-      replacements: replacements.map((value) => ({ value })),
-      rule: { id: ruleId, issueType: "grammar", category: { id: categoryId } },
-    });
     const { engine: e } = engine(
       { default_mode: "local", languagetool: lt },
       {
-        languagetool: () => ({
-          status: 200,
-          headers: {},
-          body: {
-            matches: [
-              at("vien", ["viens"], "CAT_GRAMMAIRE", "TU_VERBE"),
-              at("vu", ["vus", "vues"], "CAT_GRAMMAIRE", "AUX_AVOIR"),
-              at("a la", ["à la"], "CAT_HOMONYMES_PARONYMES", "A_A_ACCENT"),
-            ],
-          },
-        }),
+        languagetool: ltRules([
+          [/\bvien\b/u, ["viens"], "CAT_GRAMMAIRE", "TU_VERBE"],
+          [/\bvu\b/u, ["vus", "vues"], "CAT_GRAMMAIRE", "AUX_AVOIR"],
+          [/\ba la\b/u, ["à la"], "CAT_HOMONYMES_PARONYMES", "A_A_ACCENT"],
+        ]),
       },
     );
-    const result = await e.run({ operation: "fix", text });
-    expect(result.corrected_text).toBe("Il faut que tu viens demain, je les ai vu à la gare.");
+    const result = await e.run({
+      operation: "fix",
+      text: "Il faut que tu vien demain, je les ai vu a la gare.",
+    });
+    // The local subjunctive rule wins over LanguageTool's "viens".
+    expect(result.corrected_text).toBe("Il faut que tu viennes demain, je les ai vu à la gare.");
     expect(result.suggestions).toEqual([
       {
         original: "vu",
@@ -552,6 +564,21 @@ describe("CorrectionEngine — check and LanguageTool", () => {
         source: "languagetool",
       },
     ]);
+  });
+
+  it("drops a suggestion that another fix has settled", async () => {
+    const { engine: e } = engine(
+      { default_mode: "local", languagetool: lt },
+      {
+        languagetool: ltRules([
+          [/\best(?= arrivés)/u, ["sont"], "CAT_GRAMMAIRE", "ACCORD_SUJET_VERBE"],
+          [/(?<=est )arrivés/u, ["arrivé", "arrivée"], "CAT_GRAMMAIRE", "ETRE_VPPA"],
+        ]),
+      },
+    );
+    const result = await e.run({ operation: "fix", text: "Mes amis est arrivés hier." });
+    expect(result.corrected_text).toBe("Mes amis sont arrivés hier.");
+    expect(result.suggestions).toEqual([]);
   });
 });
 

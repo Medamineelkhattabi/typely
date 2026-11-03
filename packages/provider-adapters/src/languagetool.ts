@@ -40,9 +40,13 @@ const AUTO_FIX_CATEGORIES = new Set([
   "TYPOS",
   "MISC",
   "PUNCTUATION",
+  // Measured on the grammar test set (scripts/bench/grammar-corpus.ts): one sure fix each.
+  "CAT_ELISION", // "Je ai" → "J'ai"
+  "COLLOCATIONS", // "married with" → "married to", "discuss about it" → "discuss it"
+  "NONSTANDARD_PHRASES", // "informations" → "information"
 ]);
 const NEVER_AUTO_RULE =
-  /SPELL|MORFOLOGIK|HUNSPELL|WORD_REPEAT|COMMA|VIRGULE|UNPAIRED|WHITESPACE|SPACE|CASING|UPPERCASE/;
+  /SPELL|MORFOLOGIK|HUNSPELL|WORD_REPEAT|COMMA|VIRGULE|UNPAIRED|WHITESPACE|SPACE|CASING|UPPERCASE|COMPOUNDS|A_UNCOUNTABLE/;
 /**
  * Two automatic grammar fixes on adjacent words may contradict ("This are my friend" gets
  * "This" → "These" and "are" → "is"): then neither is applied. Fixes further apart ("tu vien
@@ -52,8 +56,15 @@ const NEVER_AUTO_RULE =
 const CONFLICT_GAP = 3;
 const GRAMMAR_CATEGORIES = new Set(["GRAMMAR", "CAT_GRAMMAIRE", "AGREEMENT"]);
 
-/** Rules whose id matches NEVER_AUTO_RULE but are reliable ("isnt" → "isn't"). */
-const ALWAYS_AUTO_RULE = new Set(["EN_CONTRACTION_SPELLING"]);
+/**
+ * Reliable rules outside the categories above or matching NEVER_AUTO_RULE: "isnt" → "isn't",
+ * "Elle et partie" → "est", "goes always" → "always goes".
+ */
+const ALWAYS_AUTO_RULE = new Set([
+  "EN_CONTRACTION_SPELLING",
+  "CONFUSION_EST_ET",
+  "ADVERB_WORD_ORDER",
+]);
 
 export function isSafeLanguageToolFix(match: {
   categoryId: string;
@@ -63,12 +74,13 @@ export function isSafeLanguageToolFix(match: {
   /** The text before the match, to recognise a capitalised word in mid-sentence. */
   before: string;
 }): boolean {
-  if (!AUTO_FIX_CATEGORIES.has(match.categoryId)) return false;
-  if (NEVER_AUTO_RULE.test(match.ruleId) && !ALWAYS_AUTO_RULE.has(match.ruleId)) return false;
+  const always = ALWAYS_AUTO_RULE.has(match.ruleId);
+  if (!always && !AUTO_FIX_CATEGORIES.has(match.categoryId)) return false;
+  if (!always && NEVER_AUTO_RULE.test(match.ruleId)) return false;
   // A capitalised word in mid-sentence is usually a name or a label ("the Replace button").
   const lead = match.before.trimEnd();
   if (/^\p{Lu}/u.test(match.matched) && lead !== "" && !/[.!?:\n"«“]$/u.test(lead)) return false;
-  if (match.issueType === "style" || match.issueType === "typographical") return false;
+  if (!always && (match.issueType === "style" || match.issueType === "typographical")) return false;
   // Two-letter tokens are usually abbreviations or language codes ("fr" → "for").
   if (match.categoryId === "TYPOS" && match.matched.trim().length < 3) return false;
   return true;
@@ -133,16 +145,30 @@ export class LanguageToolClient {
         f.issue.replacements.length === 1,
     );
     for (const f of automaticGrammar) {
-      const conflict = automaticGrammar.some((other) => {
-        if (other === f) return false;
-        const [first, second] =
-          other.issue.offset < f.issue.offset ? [other.issue, f.issue] : [f.issue, other.issue];
-        return second.offset - (first.offset + first.length) <= CONFLICT_GAP;
-      });
+      const conflict = automaticGrammar.some((other) => other !== f && near(f.issue, other.issue));
       if (conflict) f.issue.auto_fix = false;
+    }
+    // A rule that also flags a neighbouring word without offering a fix points at the word
+    // order, which one replacement cannot repair: "une grande très maison" gets "très" →
+    // "vraiment" from the same rule that flags "maison".
+    for (const f of found) {
+      const structural = found.some(
+        (other) =>
+          other !== f &&
+          other.issue.rule_id === f.issue.rule_id &&
+          other.issue.replacements.length === 0 &&
+          near(f.issue, other.issue),
+      );
+      if (structural) f.issue.auto_fix = false;
     }
     return found.map((f) => f.issue);
   }
+}
+
+/** Whether two findings are on the same or adjacent words. */
+function near(a: GrammarIssue, b: GrammarIssue): boolean {
+  const [first, second] = a.offset < b.offset ? [a, b] : [b, a];
+  return second.offset - (first.offset + first.length) <= CONFLICT_GAP;
 }
 
 function toIssue(match: unknown, text: string): { issue: GrammarIssue; categoryId: string }[] {

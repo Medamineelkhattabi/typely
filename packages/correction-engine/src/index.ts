@@ -57,3 +57,4 @@ export {
 } from "./spelling/speller.ts";
 export { changeRatio, charEditRatio, diffWords, tokenize } from "./text/diff.ts";
 export { findProtectedSpans, type ProtectedSpan } from "./text/protected.ts";
+export { keepApostrophes, keepRegister, keepSpacing } from "./text/style.ts";

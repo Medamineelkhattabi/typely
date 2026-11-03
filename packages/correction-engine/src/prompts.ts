@@ -176,7 +176,13 @@ function buildUserMessage(text: string, hints: readonly GrammarIssue[] | undefin
   if (hints !== undefined && hints.length > 0) {
     const lines = hints.slice(0, 20).map((h) => {
       const fragment = JSON.stringify(text.slice(h.offset, h.offset + h.length));
-      const fix = h.replacements.length > 0 ? ` → ${JSON.stringify(h.replacements[0])}` : "";
+      const fix =
+        h.replacements.length === 0
+          ? ""
+          : ` → ${h.replacements
+              .slice(0, 3)
+              .map((r) => JSON.stringify(r))
+              .join(" or ")}`;
       return `- ${fragment}${fix}: ${h.message}`;
     });
     parts.push(`Automated checks flagged (verify, do not apply blindly):\n${lines.join("\n")}`);

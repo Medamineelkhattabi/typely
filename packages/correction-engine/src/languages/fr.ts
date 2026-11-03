@@ -1,4 +1,5 @@
 import { type LocalRule, matchAll } from "../rules/types.ts";
+import { frenchSubjunctive } from "./fr-subjunctive.ts";
 import type { LanguageProfile } from "./types.ts";
 
 /** U+202F narrow no-break space (before ; ! ? and inside guillemets). */
@@ -50,10 +51,11 @@ export const french: LanguageProfile = {
   nativeName: "Français",
   direction: "ltr",
   script: "latin",
-  // Words shared with English ("a", "on", "son", "plus", "me", "as") are deliberately excluded.
+  // Words shared with English ("a", "on", "son", "plus", "me", "as", "car") are deliberately
+  // excluded.
   stopwords: new Set(
     `le la les un une des du et est sont que qui quoi dans pour pas sur au aux ce cette ces
-     cet il elle ils elles nous vous je tu ne se sa ses leur leurs mais ou où donc car avec
+     cet il elle ils elles nous vous je tu ne se sa ses leur leurs mais ou où donc avec
      par tout tous toute toutes très bien être avoir fait faire été suis es était ont mon ma
      mes ton ta tes notre votre nos vos comme si aussi encore déjà merci bonjour bonsoir salut
      oui non peut peux veux dois doit ça cela ceci quand lui moi toi là alors après avant chez
@@ -137,7 +139,7 @@ export const french: LanguageProfile = {
       category: "grammar",
     },
   ],
-  rules: [spaceBeforeDoublePunctuation, guillemetSpacing],
+  rules: [spaceBeforeDoublePunctuation, guillemetSpacing, frenchSubjunctive],
   promptGuidance:
     "Français : vérifier rigoureusement les accords (genre, nombre, participe passé avec être/avoir), " +
     "les conjugaisons, les homophones (a/à, ou/où, ces/ses, et/est, son/sont, -er/-é), les accents et la " +

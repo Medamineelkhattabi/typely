@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { restoreFixes } from "../src/engine.ts";
 import {
   applyFixes,
   createDefaultRegistry,
@@ -218,5 +219,32 @@ describe("mergeIssues", () => {
     const firstFix = issue(12, 4, ["viens"]);
     expect(mergeIssues([firstFix], [issue(12, 4, ["vient"])])).toEqual([firstFix]);
     expect(mergeIssues([suggestion], [issue(12, 4, ["a", "b"])])).toEqual([suggestion]);
+  });
+});
+
+describe("restoreFixes", () => {
+  const fixAt = (text: string, fragment: string, replacement: string) => ({
+    original: fragment,
+    issue: {
+      offset: text.indexOf(fragment),
+      length: fragment.length,
+      message: "",
+      category: "grammar" as const,
+      replacements: [replacement],
+      source: "languagetool" as const,
+      rule_id: "LT:X",
+      severity: "error" as const,
+    },
+  });
+
+  it("puts back a sure fix the model undid, at the same place only", () => {
+    const original = "Il a mal a la tête.";
+    const fix = fixAt(original, "a la", "à la");
+    expect(restoreFixes(original, "Elle a mal a la tête.", [fix])).toBe("Elle a mal à la tête.");
+    expect(restoreFixes(original, "Il a mal à la tête.", [fix])).toBe("Il a mal à la tête.");
+    const text = "Je suis d'accord sur ce point là.";
+    expect(restoreFixes(text, text, [fixAt(text, "point là", "point-là")])).toBe(
+      "Je suis d'accord sur ce point-là.",
+    );
   });
 });

@@ -134,4 +134,42 @@ describe("LanguageTool auto-fix policy", () => {
       ),
     ).toEqual(["viens", "vus"]);
   });
+
+  it("does not apply a fix when the same rule flags the next word without one", async () => {
+    const text = "C'est une grande très maison.";
+    const flagged = match(text, "maison", "", "CAT_GRAMMAIRE", "TRES");
+    expect(
+      automatic(
+        await check(text, [
+          match(text, "très", "vraiment", "CAT_GRAMMAIRE", "TRES"),
+          { ...flagged, replacements: [] },
+        ]),
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("LanguageTool auto-fix policy, measured additions", () => {
+  it("applies elisions, collocations and a few precise rules", () => {
+    for (const [categoryId, ruleId, issueType, matched] of [
+      ["CAT_ELISION", "ELISION", "uncategorized", "Je ai"],
+      ["COLLOCATIONS", "MARRY_WITH", "grammar", "married with"],
+      ["NONSTANDARD_PHRASES", "INFORMATIONS", "misspelling", "informations"],
+      ["CAT_TOURS_CRITIQUES", "CONFUSION_EST_ET", "uncategorized", "et"],
+      ["STYLE", "ADVERB_WORD_ORDER", "style", "goes always"],
+    ] as const)
+      expect(
+        isSafeLanguageToolFix({ categoryId, ruleId, issueType, matched, before: "" }),
+        ruleId,
+      ).toBe(true);
+    expect(
+      isSafeLanguageToolFix({
+        categoryId: "CAT_TOURS_CRITIQUES",
+        ruleId: "OTHER_RULE",
+        issueType: "uncategorized",
+        matched: "word",
+        before: "a ",
+      }),
+    ).toBe(false);
+  });
 });
