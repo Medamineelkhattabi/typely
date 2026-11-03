@@ -220,3 +220,35 @@ fallback chain.
 - Repeat corrections within 5 minutes skip the load. Up to ~1.4 GB (1B) stays resident while warm, at ~0% CPU.
 - Whether 2 s is met depends on message length and on the laptop's power and thermal state. See the measurements below.
 - gemma3 uses sliding-window attention, so Ollama cannot reuse a partially matching cached prompt: instructions are re-read on every request.
+
+---
+
+## ADR-017 — Desktop trusted executor details
+
+Status: accepted (Phase 2, 2026-11-03).
+
+**Context.** ADR-004 and ADR-016 left the desktop transport, key storage and panel mechanics
+to Phase 2.
+
+**Decision.**
+- **Endpoints come from Rust's own settings copy.** The webview names an endpoint id; Rust
+  derives the base URL and auth scheme from the settings file it persists (validated again on
+  every save), never from request arguments.
+- **Keys are bound to an origin.** A key is stored in the Windows Credential Manager together
+  with the origin of the endpoint it was entered for. If the base URL is later changed to
+  another host, the key is not sent until the user enters it again. Keys are never sent over
+  plain HTTP to a non-loopback host. No command returns a key.
+- **Streaming uses a Tauri channel, not global events.** `provider_stream` pushes each NDJSON
+  line over an `ipc::Channel` scoped to the calling webview, then an `end` marker (the
+  command's result can arrive before the last line). `provider_cancel` aborts by request id,
+  including a cancel that arrives before the request registered.
+- **The panel is activated with `SetForegroundWindow`,** not Tauri's `set_focus`, which on
+  Windows injects an Alt keypress that reaches the source app (menu key tips, menu bar).
+  Our process may take the foreground because it just received the hotkey.
+- **Replace pastes into the recorded window only** for the capture that produced the text
+  (capture id); the webview never sees the window handle.
+- **No installer yet.** `bundle.active` is off so `tauri build` downloads no bundler tools;
+  installers come with signing in Phase 5.
+
+**Consequences.** A compromised webview can still change consent settings or send text to an
+endpoint the user configured, but it cannot read a key or move one to another host.

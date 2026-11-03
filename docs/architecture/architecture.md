@@ -177,7 +177,8 @@ All responses are validated locally regardless of provider-side enforcement.
 - **Floating panel**: pre-created hidden, non-activating where possible, positioned near
   the caret/selection rectangle and clamped to the monitor work area.
 - **React UI** (main window + floating panel) imports the engine directly and uses
-  `TauriTransport` (`invoke("provider_request")`).
+  `TauriTransport` (`invoke("provider_request")`; streaming through `provider_stream` and a
+  Tauri channel, see ADR-017).
 
 ### 5.2 Browser extension (Phase 3)
 

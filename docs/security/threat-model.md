@@ -42,6 +42,9 @@ webviews.
   Residual: a malicious extension update or local malware with user privileges can read
   keys — inherent to any client-side key storage.
 - Endpoint-id indirection prevents redirecting a key to an attacker host.
+- Desktop (implemented, ADR-017): a key is stored with the origin it was entered for and is
+  not sent if the endpoint later points elsewhere, nor over plain HTTP to a remote host.
+  The `secret_*` commands are write-only and granted to the settings window only.
 
 ### T2 — Silent exfiltration of user text to the cloud
 
@@ -57,7 +60,8 @@ webviews.
   `autocomplete` in {`current-password`, `new-password`, `one-time-code`, `cc-*`},
   `aria-hidden` and `data-typely="off"` fields, and blocklisted sites.
 - Desktop: UI Automation `IsPassword` property checked; capture refused for password
-  controls. Clipboard fallback is only triggered by explicit user shortcut.
+  controls (no clipboard fallback either). Clipboard fallback is only triggered by explicit
+  user shortcut.
 
 ### T4 — Clipboard leakage
 
@@ -67,6 +71,13 @@ webviews.
 - Windows clipboard-history exclusion formats
   (`ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory = 0`)
   set on temporary content so it is not recorded by Win+V history or cloud clipboard.
+- Implemented (Phase 2): HGLOBAL formats are copied byte for byte and enhanced metafiles
+  deep-copied. Owner-display and private GDI formats count as unrestorable; then the
+  clipboard is not touched at all (capture offers the paste box, Replace asks for Copy).
+  The clipboard is not restored if another program wrote to it in the meantime.
+- Residual: on the Ctrl+C capture path the _source app_ writes the selection to the
+  clipboard, so Win+V history may record it. Only content Typely writes carries the
+  exclusion formats.
 
 ### T5 — Prompt injection through the corrected text
 
@@ -100,6 +111,8 @@ webviews.
 
 - Replacement re-focuses the _recorded_ window handle and verifies it is foreground and
   the same process before sending `Ctrl+V`; otherwise it aborts and offers Copy.
+  Implemented; the check is repeated after the clipboard is prepared, and elevated targets
+  are detected up front.
 
 ### T9 — Supply chain
 

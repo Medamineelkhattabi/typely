@@ -15,7 +15,7 @@ Taken 2026-11-02 on the primary development machine; toolchain rows updated 2026
 | Chrome 155, Edge 156      | ✅                                                                    | extension testing                          |
 | Rust (rustup/cargo)       | ✅ rustup 1.29.2, rustc/cargo 1.99.1, `stable-x86_64-pc-windows-msvc` | Phase 2 desktop, Phase 3 bridge            |
 | MSVC C++ Build Tools      | ✅ VS Build Tools 2022 17.14, MSVC 14.44, Windows SDK 10.0.26100      | Rust on Windows (`x86_64-pc-windows-msvc`) |
-| Ollama                    | ❌ not installed                                                      | optional local models                      |
+| Ollama                    | ❌ not installed system-wide (a portable build is used for tests)     | optional local models                      |
 
 Verified 2026-11-03: a Rust release build compiles, links with MSVC and runs (1.3 s).
 Windows long-path support is off (`LongPathsEnabled = 0`): keep the repository at a short
@@ -69,6 +69,16 @@ service, no autostart): `ollama-windows-amd64.zip` v0.40.7 extracted to
 `%USERPROFILE%\typely-bench\ollama`, started on demand with `OLLAMA_MODELS` pointing to
 the same folder.
 
+The desktop app looks for Ollama on `127.0.0.1:11434` only. To start the portable build
+with the recommended environment (PowerShell):
+
+```bash
+$env:OLLAMA_HOST="127.0.0.1:11434"; $env:OLLAMA_IGPU_ENABLE="1"; $env:OLLAMA_NO_CLOUD="1"; $env:OLLAMA_MODELS="$env:USERPROFILE\typely-bench\models"; & "$env:USERPROFILE\typely-bench\ollama\ollama.exe" serve
+```
+
+Desktop settings live in `%APPDATA%\app.typely.desktop\settings.json`, API keys in the
+Windows Credential Manager (generic credentials named `<provider id>.app.typely.desktop`).
+
 ## Optional LanguageTool server
 
 ```bash
@@ -80,11 +90,14 @@ official LanguageTool release.)
 
 ## Everyday commands
 
-| Command                           | What it does                                  |
-| --------------------------------- | --------------------------------------------- |
-| `npm test`                        | Run all unit tests (Vitest)                   |
-| `npm run typecheck`               | Strict TypeScript check of every package      |
-| `npm run lint`                    | Biome lint + format check                     |
-| `npm run format`                  | Apply Biome formatting                        |
-| `npm run check`                   | typecheck + lint + test                       |
-| `npm run typely -- <op> "<text>"` | Run the engine from the terminal (see README) |
+| Command                           | What it does                                            |
+| --------------------------------- | ------------------------------------------------------- |
+| `npm test`                        | Run all unit tests (Vitest)                             |
+| `npm run typecheck`               | Strict TypeScript check of every package                |
+| `npm run lint`                    | Biome lint + format check                               |
+| `npm run format`                  | Apply Biome formatting                                  |
+| `npm run check`                   | typecheck + lint + test + Rust checks                   |
+| `npm run check:rust`              | `cargo fmt --check`, `clippy -D warnings`, `cargo test` |
+| `npm run tauri dev`               | Run the desktop app with hot reload                     |
+| `npm run tauri build`             | Release build: `target/release/typely.exe`              |
+| `npm run typely -- <op> "<text>"` | Run the engine from the terminal (see README)           |

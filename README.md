@@ -4,17 +4,20 @@ An AI-powered universal writing assistant for Windows and Chromium browsers. Typ
 corrects, rewrites and translates text wherever you type, without copying it into a
 separate app.
 
-> **Status: Phase 1 (shared core) done.** The correction engine, provider adapters and
-> schemas are implemented and tested. The desktop app (Phase 2) and browser extension
-> (Phase 3) are not built yet. See the [roadmap](docs/development/roadmap.md).
+> **Status: Phase 2 (Windows desktop MVP) in progress.** The shared core is done. The desktop
+> app works end to end in Notepad (shortcut → panel → Replace) with local rules and local
+> Ollama models; other apps are not tested yet (see the
+> [test log](docs/development/desktop-testing.md)). The browser extension (Phase 3) is not
+> built yet. See the [roadmap](docs/development/roadmap.md).
 
 ## What exists today
 
-| Package                                                   | Purpose                                                                                                                                     |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`@typely/schemas`](packages/schemas)                     | Zod schemas for requests, results, settings and the LLM JSON contract                                                                       |
-| [`@typely/provider-adapters`](packages/provider-adapters) | OpenAI, OpenAI-compatible, Anthropic, Gemini and Ollama adapters; secret-isolating transport; retry and fallback chain; LanguageTool client |
-| [`@typely/correction-engine`](packages/correction-engine) | Language detection (fr/en/ar), local rules, 8 writing operations, prompt building, response validation and repair, safety guards, word diff |
+| Package                                                   | Purpose                                                                                                                                          |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`@typely/schemas`](packages/schemas)                     | Zod schemas for requests, results, settings and the LLM JSON contract                                                                            |
+| [`@typely/provider-adapters`](packages/provider-adapters) | OpenAI, OpenAI-compatible, Anthropic, Gemini and Ollama adapters; secret-isolating transport; retry and fallback chain; LanguageTool client      |
+| [`@typely/correction-engine`](packages/correction-engine) | Language detection (fr/en/ar), local rules, 8 writing operations, prompt building, response validation and repair, safety guards, word diff      |
+| [`apps/desktop`](apps/desktop)                            | Windows app (Tauri 2): global shortcut, selection capture, floating panel, Replace. Rust holds the settings, the API keys and every network call |
 
 Highlights:
 
@@ -84,8 +87,27 @@ const result = await engine.run({ operation: "fix", text: "Je suis allé a la r�
 ```
 
 `DirectTransport` is only for trusted contexts (Node, the extension service worker).
-The desktop app will use a transport that delegates to Rust, and the extension's
+The desktop app uses `TauriTransport`, which delegates to Rust, and the extension's
 companion mode will delegate to a native-messaging host.
+
+## Desktop app (Windows)
+
+Requires the Rust toolchain and MSVC Build Tools ([setup](docs/development/setup.md)).
+
+```bash
+npm run tauri dev
+```
+
+Select text in any app and press **Ctrl+Shift+Space**. The panel shows the local fixes at
+once, then the AI result if a model is set up. **Replace** pastes it back (Ctrl+Z undoes it).
+Without a model only the local rules run; set up Ollama under **Local AI** for more. Cloud
+providers need the Privacy switch _and_ their own consent.
+
+```bash
+npm run tauri build
+```
+
+This builds `target/release/typely.exe` (no installer yet).
 
 ## Documentation
 
@@ -98,6 +120,8 @@ companion mode will delegate to a native-messaging host.
 ## Repository layout
 
 ```
+apps/
+  desktop/             Tauri 2 app: src/ (React) + src-tauri/ (Rust)
 packages/
   schemas/             shared data contracts
   provider-adapters/   AI providers, transports, LanguageTool
@@ -107,5 +131,4 @@ scripts/               developer CLI
 docs/                  architecture, security, roadmap
 ```
 
-`apps/desktop`, `apps/extension`, `packages/ui` and `native/bridge` will be added in
-Phases 2–3.
+`apps/extension`, `packages/ui` and `native/bridge` will be added in later phases.
