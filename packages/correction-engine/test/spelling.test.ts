@@ -74,6 +74,7 @@ describe("spelling policy", () => {
     expect(singleEdit("bundler", "bundle")).toMatchObject({ typoShaped: false });
     expect(singleEdit("salut", "slut")).toMatchObject({ typoShaped: false });
     expect(singleEdit("blocklisted", "blacklisted")).toMatchObject({ typoShaped: false });
+    expect(singleEdit("isnt", "isn't")).toMatchObject({ kind: "insertion", typoShaped: true });
     expect(singleEdit("abc", "xyz")).toBeUndefined();
   });
 
@@ -329,5 +330,25 @@ describe("engine integration", () => {
     };
     const issues = await combineSpellers(speller, other).check("An imlpressive result.", "en");
     expect(issues.map((i) => i.replacements)).toEqual([["impressive"]]);
+  });
+});
+
+describe("foreign words in English text", () => {
+  it("leaves common words of another supported language alone", async () => {
+    const engine = new CorrectionEngine({
+      settings: {},
+      transport: { send: async () => ({ status: 500, headers: {}, body: undefined }) },
+      speller,
+    });
+    const text = "As they say in French, comme ci comme ça, and notre maison is fine.";
+    const result = await engine.run({ operation: "fix", mode: "local", text, language: "en" });
+    expect(result.corrected_text).toBe(text);
+    const typo = await engine.run({
+      operation: "fix",
+      mode: "local",
+      text: "An imlpressive result.",
+      language: "en",
+    });
+    expect(typo.corrected_text).toBe("An impressive result.");
   });
 });

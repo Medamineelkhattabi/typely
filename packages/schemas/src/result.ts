@@ -93,6 +93,12 @@ export const GrammarIssueSchema = z.strictObject({
   source: z.enum(["local", "languagetool"]),
   rule_id: z.string(),
   severity: z.enum(["error", "warning", "suggestion"]),
+  /**
+   * false: shown as a suggestion, never applied automatically even with a single replacement
+   * (e.g. LanguageTool style hints, or two fixes that conflict). Absent: applied when it has
+   * exactly one replacement.
+   */
+  auto_fix: z.boolean().optional(),
 });
 export type GrammarIssue = z.infer<typeof GrammarIssueSchema>;
 

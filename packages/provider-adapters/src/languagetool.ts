@@ -24,6 +24,56 @@ const RULE_CATEGORY: Readonly<Record<string, IssueCategory>> = {
   CONFUSED_WORDS: "spelling",
 };
 
+/**
+ * Which LanguageTool findings may be applied without asking (ADR-020). Measured on real
+ * text: grammar, agreement and confusion rules are reliable ("I has" → "have", "vien" →
+ * "viens", "a" → "à"); spacing, casing and comma rules produced false positives on real
+ * documents ("id" → "ID", "fr" → "for"), and Typely's own rules already cover spacing and
+ * capitalisation. Spelling stays with Typely's dictionary, which is stricter with names.
+ */
+const AUTO_FIX_CATEGORIES = new Set([
+  "GRAMMAR",
+  "CAT_GRAMMAIRE",
+  "AGREEMENT",
+  "CONFUSED_WORDS",
+  "CAT_HOMONYMES_PARONYMES",
+  "TYPOS",
+  "MISC",
+  "PUNCTUATION",
+]);
+const NEVER_AUTO_RULE =
+  /SPELL|MORFOLOGIK|HUNSPELL|WORD_REPEAT|COMMA|VIRGULE|UNPAIRED|WHITESPACE|SPACE|CASING|UPPERCASE/;
+/**
+ * Two automatic grammar fixes on adjacent words may contradict ("This are my friend" gets
+ * "This" → "These" and "are" → "is"): then neither is applied. Fixes further apart ("tu vien
+ * demain, je les ai vu": viens, vus) or of different kinds ("I has a apple": has → have,
+ * a → an) are independent.
+ */
+const CONFLICT_GAP = 3;
+const GRAMMAR_CATEGORIES = new Set(["GRAMMAR", "CAT_GRAMMAIRE", "AGREEMENT"]);
+
+/** Rules whose id matches NEVER_AUTO_RULE but are reliable ("isnt" → "isn't"). */
+const ALWAYS_AUTO_RULE = new Set(["EN_CONTRACTION_SPELLING"]);
+
+export function isSafeLanguageToolFix(match: {
+  categoryId: string;
+  ruleId: string;
+  issueType: string;
+  matched: string;
+  /** The text before the match, to recognise a capitalised word in mid-sentence. */
+  before: string;
+}): boolean {
+  if (!AUTO_FIX_CATEGORIES.has(match.categoryId)) return false;
+  if (NEVER_AUTO_RULE.test(match.ruleId) && !ALWAYS_AUTO_RULE.has(match.ruleId)) return false;
+  // A capitalised word in mid-sentence is usually a name or a label ("the Replace button").
+  const lead = match.before.trimEnd();
+  if (/^\p{Lu}/u.test(match.matched) && lead !== "" && !/[.!?:\n"«“]$/u.test(lead)) return false;
+  if (match.issueType === "style" || match.issueType === "typographical") return false;
+  // Two-letter tokens are usually abbreviations or language codes ("fr" → "for").
+  if (match.categoryId === "TYPOS" && match.matched.trim().length < 3) return false;
+  return true;
+}
+
 /** Language codes LanguageTool needs a variant for to enable spell checking. */
 const LANGUAGE_VARIANTS: Readonly<Record<string, string>> = {
   en: "en-US",
@@ -75,11 +125,28 @@ export class LanguageToolClient {
         "LanguageTool response has no matches",
       );
     }
-    return matches.flatMap((match) => toIssue(match, text.length));
+    const found = matches.flatMap((match) => toIssue(match, text));
+    const automaticGrammar = found.filter(
+      (f) =>
+        GRAMMAR_CATEGORIES.has(f.categoryId) &&
+        f.issue.auto_fix !== false &&
+        f.issue.replacements.length === 1,
+    );
+    for (const f of automaticGrammar) {
+      const conflict = automaticGrammar.some((other) => {
+        if (other === f) return false;
+        const [first, second] =
+          other.issue.offset < f.issue.offset ? [other.issue, f.issue] : [f.issue, other.issue];
+        return second.offset - (first.offset + first.length) <= CONFLICT_GAP;
+      });
+      if (conflict) f.issue.auto_fix = false;
+    }
+    return found.map((f) => f.issue);
   }
 }
 
-function toIssue(match: unknown, textLength: number): GrammarIssue[] {
+function toIssue(match: unknown, text: string): { issue: GrammarIssue; categoryId: string }[] {
+  const textLength = text.length;
   if (!isObject(match)) return [];
   const { offset, length, message } = match;
   if (typeof offset !== "number" || typeof length !== "number" || typeof message !== "string")
@@ -98,21 +165,33 @@ function toIssue(match: unknown, textLength: number): GrammarIssue[] {
         .filter((r): r is string => r !== undefined)
         .slice(0, 5)
     : [];
+  const ruleId = typeof rule["id"] === "string" ? rule["id"] : "UNKNOWN";
+  const safe = isSafeLanguageToolFix({
+    categoryId: ruleCategoryId,
+    ruleId,
+    issueType,
+    matched: text.slice(offset, offset + length),
+    before: text.slice(Math.max(0, offset - 40), offset),
+  });
   return [
     {
-      offset,
-      length,
-      message,
-      category,
-      replacements,
-      source: "languagetool",
-      rule_id: typeof rule["id"] === "string" ? `LT:${rule["id"]}` : "LT:UNKNOWN",
-      severity:
-        issueType === "misspelling" || issueType === "grammar"
-          ? "error"
-          : issueType === "style"
-            ? "suggestion"
-            : "warning",
+      categoryId: ruleCategoryId,
+      issue: {
+        offset,
+        length,
+        message,
+        category,
+        replacements,
+        source: "languagetool",
+        rule_id: `LT:${ruleId}`,
+        ...(safe ? {} : { auto_fix: false }),
+        severity:
+          issueType === "misspelling" || issueType === "grammar"
+            ? "error"
+            : issueType === "style"
+              ? "suggestion"
+              : "warning",
+      },
     },
   ];
 }

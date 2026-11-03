@@ -655,9 +655,16 @@ export class CorrectionEngine {
       return [];
     }
     const spans = findProtectedSpans(text);
+    // A common word of another supported language is a quotation, not a typo: "comme" must
+    // not become "come" in an English sentence.
+    const base = language.split("-")[0];
+    const foreign = this.registry.all().filter((p) => p.code !== base);
+    const isForeignWord = (word: string) => foreign.some((p) => p.stopwords.has(word));
     return issues.filter(
       (i) =>
-        !this.#disabledRules.has(i.rule_id) && !overlapsAny(spans, i.offset, i.offset + i.length),
+        !this.#disabledRules.has(i.rule_id) &&
+        !overlapsAny(spans, i.offset, i.offset + i.length) &&
+        !isForeignWord(text.slice(i.offset, i.offset + i.length).toLowerCase()),
     );
   }
 

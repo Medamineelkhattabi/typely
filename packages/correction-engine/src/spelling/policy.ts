@@ -56,7 +56,8 @@ export function singleEdit(from: string, to: string): Edit | undefined {
     return undefined;
   }
   if (a.length + 1 === b.length && restEqual(a, i, b, i + 1))
-    return { kind: "insertion", index: i, typoShaped: i > 0 && doubled(b, i) };
+    // A doubled letter ("tomorow"), or the apostrophe of a contraction ("isnt" → "isn't").
+    return { kind: "insertion", index: i, typoShaped: i > 0 && (doubled(b, i) || b[i] === "'") };
   if (a.length === b.length + 1 && restEqual(a, i + 1, b, i)) {
     // A stray consonant inside the word, next to a neighbouring key. Not the last letter
     // ("bundler"/"bundle") and not a vowel ("Salut"/"Slut"): those often make another word.
@@ -142,8 +143,13 @@ export function spellingIssue(
     fix = options.confident.toLowerCase();
   } else if (accentOnly.length === 1) {
     fix = accentOnly[0];
-  } else if (accentOnly.length === 0 && length >= MIN_FIX_LENGTH) {
-    const typos = near.filter((c) => singleEdit(lower, c)?.typoShaped === true);
+  } else if (accentOnly.length === 0) {
+    // A missing contraction apostrophe is unambiguous even in a short word ("dont", "isnt").
+    const typos = near.filter(
+      (c) =>
+        singleEdit(lower, c)?.typoShaped === true &&
+        (length >= MIN_FIX_LENGTH || c.replace("'", "") === lower),
+    );
     if (typos.length === 1) fix = typos[0];
   }
   if (fix !== undefined) {

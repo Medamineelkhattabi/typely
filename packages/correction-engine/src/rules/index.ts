@@ -68,11 +68,12 @@ export interface AppliedFixes {
 
 /**
  * Applies issues that have exactly one replacement. Issues with several candidate
- * replacements need a human decision and are skipped. Overlapping issues are skipped.
+ * replacements need a human decision and are skipped, as are issues marked
+ * `auto_fix: false` and overlapping issues.
  */
 export function applyFixes(text: string, issues: readonly GrammarIssue[]): AppliedFixes {
   const candidates = issues
-    .filter((i) => i.replacements.length === 1)
+    .filter((i) => i.replacements.length === 1 && i.auto_fix !== false)
     .sort((a, b) => a.offset - b.offset);
   const applied: GrammarIssue[] = [];
   let lastEnd = -1;
