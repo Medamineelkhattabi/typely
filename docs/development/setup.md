@@ -2,20 +2,24 @@
 
 ## Environment snapshot
 
-Taken 2026-11-02 on the primary development machine.
+Taken 2026-11-02 on the primary development machine; toolchain rows updated 2026-11-03.
 
-| Tool                      | Status                             | Needed for                                 |
-| ------------------------- | ---------------------------------- | ------------------------------------------ |
-| Windows 11 Pro 26200      | ✅                                 | —                                          |
-| Node.js 24.20 / npm 11.19 | ✅                                 | all TypeScript packages                    |
-| Git 2.55                  | ✅ repo-local identity (confirmed) | version control                            |
-| Python 3.12               | ✅                                 | not required (ADR-002)                     |
-| Docker 29.7               | ✅                                 | optional self-hosted LanguageTool          |
-| WebView2 runtime 156      | ✅                                 | Tauri desktop                              |
-| Chrome 155, Edge 156      | ✅                                 | extension testing                          |
-| Rust (rustup/cargo)       | ❌ missing                         | Phase 2 desktop, Phase 3 bridge            |
-| MSVC C++ Build Tools      | ❌ missing                         | Rust on Windows (`x86_64-pc-windows-msvc`) |
-| Ollama                    | ❌ not installed                   | optional local models                      |
+| Tool                      | Status                                                                | Needed for                                 |
+| ------------------------- | --------------------------------------------------------------------- | ------------------------------------------ |
+| Windows 11 Pro 26200      | ✅                                                                    | —                                          |
+| Node.js 24.20 / npm 11.19 | ✅                                                                    | all TypeScript packages                    |
+| Git 2.55                  | ✅ repo-local identity (confirmed)                                    | version control                            |
+| Python 3.12               | ✅                                                                    | not required (ADR-002)                     |
+| Docker 29.7               | ✅                                                                    | optional self-hosted LanguageTool          |
+| WebView2 runtime 156      | ✅                                                                    | Tauri desktop                              |
+| Chrome 155, Edge 156      | ✅                                                                    | extension testing                          |
+| Rust (rustup/cargo)       | ✅ rustup 1.29.2, rustc/cargo 1.99.1, `stable-x86_64-pc-windows-msvc` | Phase 2 desktop, Phase 3 bridge            |
+| MSVC C++ Build Tools      | ✅ VS Build Tools 2022 17.14, MSVC 14.44, Windows SDK 10.0.26100      | Rust on Windows (`x86_64-pc-windows-msvc`) |
+| Ollama                    | ❌ not installed                                                      | optional local models                      |
+
+Verified 2026-11-03: a Rust release build compiles, links with MSVC and runs (1.3 s).
+Windows long-path support is off (`LongPathsEnabled = 0`): keep the repository at a short
+path such as `C:\dev	ypely`. Cargo fails with "path too long" under deep folders.
 
 ### Repository location
 
