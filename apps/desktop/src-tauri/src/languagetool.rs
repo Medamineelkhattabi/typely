@@ -230,10 +230,34 @@ type JobHandle = Option<job::Job>;
 #[cfg(not(windows))]
 type JobHandle = ();
 
+/// Server options. Without `pipelineCaching` LanguageTool rebuilds its rule pipeline on every
+/// request: 3–5 s per French check on the reference laptop, ~0.1 s with it (about +75 MB).
+const SERVER_CONFIG: &str = "\
+pipelineCaching=true
+maxPipelinePoolSize=10
+pipelineExpireTimeInSeconds=3600
+";
+
+/// Writes the server options next to the install and returns their path.
+fn write_config(install: &Install) -> Result<PathBuf, String> {
+    let dir = install
+        .jar
+        .parent()
+        .and_then(Path::parent)
+        .ok_or("The grammar checker folder is incomplete")?;
+    let path = dir.join("server.properties");
+    if std::fs::read_to_string(&path).ok().as_deref() != Some(SERVER_CONFIG) {
+        std::fs::write(&path, SERVER_CONFIG)
+            .map_err(|e| format!("Cannot write the grammar checker settings: {e}"))?;
+    }
+    Ok(path)
+}
+
 fn spawn(install: &Install) -> Result<(Child, JobHandle), String> {
+    let config = write_config(install)?;
     let mut command = Command::new(&install.java);
     command
-        // Small heap and the serial collector: ~400 MB in use instead of a default JVM's GBs.
+        // Small heap and the serial collector: ~400-500 MB in use instead of a default JVM's GBs.
         .args([
             "-Xms32m",
             "-Xmx512m",
@@ -246,7 +270,9 @@ fn spawn(install: &Install) -> Result<(Child, JobHandle), String> {
             "org.languagetool.server.HTTPServer",
             "--port",
             &PORT.to_string(),
+            "--config",
         ])
+        .arg(&config)
         .current_dir(install.jar.parent().unwrap_or(Path::new(".")))
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
@@ -295,7 +321,8 @@ fn wait_until_ready() -> Result<(), String> {
     Err("The grammar checker did not start in time".to_owned())
 }
 
-/// The first check per language loads its rules (~10 s for English): do it now.
+/// The first check per language loads its rules (~10 s for English): do it now. The codes
+/// match what corrections send, so the cached pipelines are the ones they use.
 fn warm_up() -> Result<(), String> {
     for (language, text) in [("en-US", "This are a test."), ("fr", "Ceci est un test.")] {
         let body = format!("language={language}&text={}", text.replace(' ', "%20"));
@@ -375,6 +402,13 @@ mod tests {
         std::fs::write(dir.join("LanguageTool-6.6/languagetool-server.jar"), b"").unwrap();
         let install = find_install(&dir).unwrap();
         assert_eq!(install.version, "6.6");
+
+        // The server options are written next to the install, once.
+        let config = write_config(&install).unwrap();
+        assert_eq!(config, dir.join("server.properties"));
+        let written = std::fs::read_to_string(&config).unwrap();
+        assert!(written.contains("pipelineCaching=true"));
+        assert_eq!(write_config(&install).unwrap(), config);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

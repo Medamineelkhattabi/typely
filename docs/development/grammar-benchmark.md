@@ -51,6 +51,21 @@ Both are now handled by two fixes:
 A second Groq run gave the same score on the 91 sentences it answered (87 and 85; the
 model's answers vary from run to run). It then hit Groq's free daily limit (see below).
 
+### French speed: LanguageTool's pipeline cache
+
+LanguageTool rebuilt its rule pipeline for every request, so each French check took 1.2–5.5 s
+whatever the length, and a correction runs at least two. Typely now starts it with
+`pipelineCaching=true` (ADR-020). Measured 2026-11-04 on 8 French sentences with Groq
+`openai/gpt-oss-20b`, both servers side by side:
+
+| LanguageTool       | Fixed | Median time per correction |
+| ------------------ | ----- | -------------------------- |
+| No pipeline cache  | 8/8   | 5.4 s                      |
+| Pipeline cache on  | 8/8   | 1.3 s                      |
+
+A single French check drops from 3.2–5.5 s to ~0.1 s, for about 75 MB more while the server
+runs. English checks were already ~0.1 s.
+
 ### Cloud models: free tiers
 
 **Groq.** One correction costs about 1,100–1,600 tokens with the full prompt. The free tier

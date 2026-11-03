@@ -329,9 +329,10 @@ supported it as Layer 2 (ADR-007) without a local server.
 - **Portable install, no system change:** a Temurin JRE and LanguageTool in
   `%LOCALAPPDATA%\Typely\languagetool` (setup.md), not bundled with Typely.
 - **Rust manages the process** (`languagetool.rs`): loopback port 18081, hidden window,
-  512 MB heap cap, serial GC. Started when the panel opens (an explicit action), warmed up
-  for English and French in the background, stopped after 10 idle minutes or with Typely; a
-  job object kills it even if Typely crashes. Nothing runs at startup.
+  512 MB heap cap, serial GC, pipeline caching on (`server.properties`, written next to the
+  install). Started when the panel opens (an explicit action), warmed up for English and
+  French in the background, stopped after 10 idle minutes or with Typely; a job object kills
+  it even if Typely crashes. Nothing runs at startup.
 - **Never waited for:** until it is ready, the transport answers at once and the engine goes
   on with its other layers; the panel says the grammar checker is starting.
 - **What may be applied automatically** (`isSafeLanguageToolFix`, schema field
@@ -343,6 +344,10 @@ supported it as Layer 2 (ADR-007) without a local server.
 **Consequences.**
 - Measured: ready in 6.3 s, first English check 10.9 s (rule loading), then ~0.1 s per check;
   French ~1.2–2 s for its first checks. ~0.4–0.5 GB while running, nothing when stopped.
+- Without pipeline caching, LanguageTool rebuilds its rules for every request: French took
+  1.2–5.5 s per check whatever the text length, at least twice per correction. With caching
+  (2026-11-04, same laptop, both servers side by side): 3.2–5.5 s without, ~0.1 s with,
+  after the warm-up, for about 75 MB more.
 - Real-text precision: on this repository's English docs, 0 automatic LanguageTool fixes;
   on typical errors it fixes "I has a apple" → "I have an apple", "tu vien" → "tu viens",
   "je les ai vu" → "vus", "a la gare" → "à la gare".

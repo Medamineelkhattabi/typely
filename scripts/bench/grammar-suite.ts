@@ -5,7 +5,12 @@
  *   node scripts/bench/grammar-suite.ts --lt http://127.0.0.1:18082 [--model gemma3:1b]
  *        [--mode hybrid|local] [--only fr-subj-venir,en-goes] [--failed results.json]
  *        [--out results.json]
- *   node scripts/bench/grammar-suite.ts --lt … --kind openai_compatible  *        --base-url https://api.groq.com/openai/v1 --model openai/gpt-oss-20b  *        --key-file .env --key-name groq-api-key --delay 2100
+ *   node scripts/bench/grammar-suite.ts --lt … --kind openai_compatible
+ *        --base-url https://api.groq.com/openai/v1 --model openai/gpt-oss-20b
+ *        --key-file .env --key-name groq-api-key --delay 2100
+ *
+ * Start LanguageTool with `--config` pointing at a file containing `pipelineCaching=true`,
+ * as Typely does; without it French checks take seconds each.
  *
  * A cloud model receives only the test sentences. Its key is read from a git-ignored
  * `key=value` file at run time and never printed; --delay spaces the requests out for
