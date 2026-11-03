@@ -1,4 +1,5 @@
 import { type LocalRule, matchAll } from "../rules/types.ts";
+import { quantifierPlural, thereIsPlural } from "./en-agreement.ts";
 import type { LanguageProfile } from "./types.ts";
 
 const lowercaseI: LocalRule = {
@@ -102,7 +103,7 @@ export const english: LanguageProfile = {
       category: "grammar",
     },
   ],
-  rules: [lowercaseI, spaceBeforePunctuation],
+  rules: [lowercaseI, spaceBeforePunctuation, quantifierPlural, thereIsPlural],
   promptGuidance:
     "English: keep the writer's variant (US or UK spelling) consistent with the input; do not switch variants. " +
     "Fix articles, subject–verb agreement, tense consistency and common confusions (its/it's, their/there/they're, " +

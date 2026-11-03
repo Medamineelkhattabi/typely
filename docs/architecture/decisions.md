@@ -291,3 +291,26 @@ prompt wording did not help. A fix that depends on a model noticing is not depen
   later checks take under 1 ms.
 - Replaces the Phase 4 Hunspell/Harper evaluation for English. French and Arabic
   dictionaries no longer need a licence review, as Windows provides them.
+
+---
+
+## ADR-019 — English number agreement as local rules
+
+Status: accepted (2026-11-03).
+
+**Context.** "There is a lot of issue." stayed unchanged: gemma3:1b, the fast model for
+Correct, cannot fix number agreement with any prompt wording, and the deeper check on
+gemma3:4b costs a click and several seconds for a very common mistake.
+
+**Decision.** Two English rules in Layer 1, so the fix is instant and needs no model:
+- `EN_QUANTIFIER_PLURAL`: a singular noun after a quantifier becomes plural ("several bug" →
+  "several bugs", "three meeting tomorrow" → "three meetings"). Quantifiers that also take
+  uncountable nouns ("a lot of", "lots of", "plenty of") only pluralise common countable nouns
+  from a curated list ("a lot of information" stays). Only nouns right before the end of a
+  clause, a conjunction or a time word are touched. Not "both" and not digits, which matched
+  verbs, versions and labels in real text.
+- `EN_THERE_IS_PLURAL`: "there is/was/'s" before a quantified plural noun becomes "there
+  are/were"; "news", "series" and similar are excluded.
+
+**Consequences.** On ~20,000 words of this repository's docs and code, the only match is a
+real error. Rarer shapes ("These issue are fixed") are left to the model and the deeper check.

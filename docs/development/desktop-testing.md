@@ -69,7 +69,9 @@ that must stay unchanged, including jargon, French and a prompt injection):
 | New ("correct every error… change only what is wrong")      | 1 of 3 fixed | **3 of 3 fixed**, 5 of 5 kept                                     |
 | New + an example in the prompt                              | 1 of 3       | 3 of 3, but leaked the example into a correct sentence (rejected) |
 
-gemma3:1b cannot fix "a lot of issue" or "We has three meeting" with any wording. The panel
+gemma3:1b cannot fix "a lot of issue" or "We has three meeting" with any wording. After a
+second user report ("There is a lot of issue."), number agreement after quantifiers became
+local rules (ADR-019): instant and model-independent. The panel
 now offers **Check again with gemma3:4b** after a correction by a small model; verified in
 Notepad: "Hello, there are a lot of issues." (18.6 s cold, 2–7 s warm).
 
