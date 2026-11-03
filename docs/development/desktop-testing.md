@@ -41,14 +41,24 @@ Testing a page shown in an Electron desktop app's embedded browser view:
 capture worked through UI Automation, but Replace pasted nowhere visible, because the
 re-activated window gave keyboard focus to its main view, not the embedded page. Replace now
 restores focus to the captured control (UI Automation `SetFocus`) and refuses to paste if
-it cannot. Re-test pending.
+it cannot. Re-tested by the user after the fix: works.
+
+## Browser (user test, 2026-11-03, after the focus fix)
+
+From the diagnostics log (capture method, app, outcome):
+
+| Where                                         | Capture       | Replace |
+| --------------------------------------------- | ------------- | ------- |
+| Brave, `<input type="text">` (French text)    | UI Automation | ✅      |
+| Electron app, embedded web view, `<textarea>` | UI Automation | ✅      |
+
+Brave's textarea and contenteditable fields and the password-field refusal were not logged,
+so they remain unverified.
 
 ## Not verified yet
 
-- **Browser text fields (Edge/Chrome).** Not tested yet. To check: open any page with a
-  `<textarea>`, type a sentence with errors, select it, press the shortcut, then Replace.
-  Hovering the source name in the panel header shows whether UI Automation or the clipboard
-  path was used.
+- Browser: Edge and Chrome; textarea and contenteditable fields in Brave; rich editors
+  (Gmail, ChatGPT, Teams web).
 - The clipboard fallback (Ctrl+C) in an app without UI Automation text support.
 - Password fields (the UI Automation `IsPassword` refusal) in a real app.
 - Elevated (administrator) target windows; a shortcut already taken by another app.

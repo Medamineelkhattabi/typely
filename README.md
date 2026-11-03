@@ -5,8 +5,8 @@ corrects, rewrites and translates text wherever you type, without copying it int
 separate app.
 
 > **Status: Phase 2 (Windows desktop MVP) in progress.** The shared core is done. The desktop
-> app works end to end in Notepad (shortcut → panel → Replace) with local rules and local
-> Ollama models; other apps are not tested yet (see the
+> app works end to end in Notepad and a Brave text field (shortcut → panel → Replace) with
+> local rules and local Ollama models; other apps are not tested yet (see the
 > [test log](docs/development/desktop-testing.md)). The browser extension (Phase 3) is not
 > built yet. See the [roadmap](docs/development/roadmap.md).
 

@@ -46,7 +46,7 @@ Prerequisite: Rust toolchain + MSVC Build Tools (see setup.md). Desktop app: [ap
 - [~] Main window: dashboard, writing assistant (diff view), providers, languages, shortcuts, privacy, general — assistant, local AI, providers (with consent and write-only keys), privacy and general done; no dashboard or languages page
 - [ ] `packages/ui` shared components (only those reused by the extension)
 - [ ] Localise shared local-rule messages by `rule_id` (currently English; ADR-014)
-- [~] Desktop tests: shortcut, capture in Notepad / Word / Outlook / Teams / browser, clipboard restore, elevated-app failure path — Notepad only (manual, 2026-11-03); browser, Office, Teams and elevated apps not tested
+- [~] Desktop tests: shortcut, capture in Notepad / Word / Outlook / Teams / browser, clipboard restore, elevated-app failure path — Notepad, Brave (text input) and an Electron web view verified (2026-11-03, [log](desktop-testing.md)); Office, Teams, other browsers and elevated apps not tested
 - [x] Local AI: detect an installed Ollama (never bundle it), show its status, recommend `OLLAMA_IGPU_ENABLE=1` and `OLLAMA_NO_CLOUD=1`
 - [x] Gate 1B-class local models to `fix`; other operations need the quality model or are labelled experimental
 - [x] Show guard warnings (`language_changed`, `excessive_changes`, `protected_token_lost`) before _Replace_ (and `ai_rejected`, verified with a real injection)
