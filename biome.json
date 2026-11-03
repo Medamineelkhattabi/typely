@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/target"]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/target", "!**/src-tauri/gen"]
   },
   "formatter": {
     "enabled": true,

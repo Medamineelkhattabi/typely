@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "panel-window",
+  "description": "Floating panel: reads settings, runs provider requests, replaces or copies the result.",
+  "windows": ["panel"],
+  "permissions": [
+    "core:default",
+    "allow-settings-get",
+    "allow-provider-request",
+    "allow-provider-stream",
+    "allow-provider-cancel",
+    "allow-panel-ready",
+    "allow-panel-hide",
+    "allow-panel-replace",
+    "allow-panel-copy"
+  ]
+}
