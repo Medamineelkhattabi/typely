@@ -58,10 +58,10 @@ whatever the length, and a correction runs at least two. Typely now starts it wi
 `pipelineCaching=true` (ADR-020). Measured 2026-11-04 on 8 French sentences with Groq
 `openai/gpt-oss-20b`, both servers side by side:
 
-| LanguageTool       | Fixed | Median time per correction |
-| ------------------ | ----- | -------------------------- |
-| No pipeline cache  | 8/8   | 5.4 s                      |
-| Pipeline cache on  | 8/8   | 1.3 s                      |
+| LanguageTool      | Fixed | Median time per correction |
+| ----------------- | ----- | -------------------------- |
+| No pipeline cache | 8/8   | 5.4 s                      |
+| Pipeline cache on | 8/8   | 1.3 s                      |
 
 A single French check drops from 3.2–5.5 s to ~0.1 s, for about 75 MB more while the server
 runs. English checks were already ~0.1 s.
@@ -72,6 +72,13 @@ runs. English checks were already ~0.1 s.
 allows 200,000 tokens per day for `openai/gpt-oss-20b`, so about 130–180 corrections a day
 on that model. Each model has its own allowance (`openai/gpt-oss-120b`, `qwen/qwen3.8-27b`).
 After the limit, Groq answers 429 until the next window.
+
+gpt-oss reasons before it answers, and the reasoning counts against the output limit. On a
+120-word French paragraph it reasoned for 1,700–3,600 tokens, so Groq's default limit
+(2,048) cut it off, and the panel fell back to gemma3:1b, which fixed almost nothing.
+Typely now gives models it recognises as reasoning models (gpt-oss, qwen3, o-series…) 8,192
+tokens of room on top of the answer. That paragraph then costs about 4,000–4,400 tokens and
+5–7 s; a one-line sentence still costs ~450 tokens and ~1.2 s.
 
 **OpenRouter.** Its free models (`:free`) allow 1,000 requests a day on this account. They
 are shared by everyone, so several were saturated or refused during the test. Measured on

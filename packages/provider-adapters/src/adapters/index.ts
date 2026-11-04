@@ -8,7 +8,7 @@ import { OpenAiAdapter } from "./openai.ts";
 export { ANTHROPIC_VERSION, AnthropicAdapter } from "./anthropic.ts";
 export { GeminiAdapter } from "./gemini.ts";
 export { OllamaAdapter } from "./ollama.ts";
-export { OpenAiAdapter } from "./openai.ts";
+export { isReasoningModel, OpenAiAdapter } from "./openai.ts";
 
 export function createAdapter(config: ProviderConfig): ProviderAdapter {
   switch (config.kind) {

@@ -11,6 +11,16 @@ import type {
 } from "../types.ts";
 import { ensureOk, invalid, isObject, optional, resolveBaseUrl, toCount } from "./shared.ts";
 
+/** Room for hidden reasoning on top of the answer: gpt-oss used up to ~3,400 tokens. */
+const REASONING_BUDGET = 8_192;
+
+const REASONING_MODEL = /gpt-oss|gpt-5|(^|\/)o\d|qwen3|deepseek-r1|magistral|reasoning|thinking/i;
+
+/** Model families that reason before answering; the name is all an OpenAI-style API tells. */
+export function isReasoningModel(model: string): boolean {
+  return REASONING_MODEL.test(model);
+}
+
 /**
  * OpenAI Chat Completions, also used for OpenAI-compatible servers (vLLM, LM Studio,
  * OpenRouter, Groq, Azure-style gateways…).
@@ -53,6 +63,13 @@ export class OpenAiAdapter implements ProviderAdapter {
     }
     // OpenAI renamed max_tokens to max_completion_tokens; many compatible servers only know the old name.
     const maxTokensKey = this.kind === "openai" ? "max_completion_tokens" : "max_tokens";
+    // A reasoning model spends its token limit on hidden reasoning first: on Groq's default
+    // (2,048) gpt-oss reasoned for ~1,700 tokens on a 120-word paragraph and was cut off.
+    const maxTokens =
+      this.config.max_output_tokens ??
+      (isReasoningModel(this.config.model)
+        ? request.suggestedMaxOutputTokens + REASONING_BUDGET
+        : undefined);
     return {
       method: "POST",
       path: "/chat/completions",
@@ -64,10 +81,9 @@ export class OpenAiAdapter implements ProviderAdapter {
           { role: "user", content: request.user },
         ],
         ...optional("response_format", responseFormat),
-        // Only sent when configured: reasoning models reject non-default temperatures and
-        // count hidden reasoning against the token limit.
+        // Only sent when configured: reasoning models reject non-default temperatures.
         ...optional("temperature", this.config.temperature),
-        ...optional(maxTokensKey, this.config.max_output_tokens),
+        ...optional(maxTokensKey, maxTokens),
       },
     };
   }

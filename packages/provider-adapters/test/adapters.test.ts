@@ -4,6 +4,7 @@ import {
   ANTHROPIC_VERSION,
   type CompletionRequest,
   createAdapter,
+  isReasoningModel,
   ProviderError,
   type ProviderHttpResponse,
 } from "../src/index.ts";
@@ -149,6 +150,26 @@ describe("OpenAI-compatible adapter", () => {
     expect(adapter.baseUrl).toBe("http://127.0.0.1:1234/v1");
     expect(adapter.isLocal).toBe(true);
     expect(adapter.auth).toEqual({ type: "bearer", optional: true });
+  });
+
+  it("gives reasoning models room to reason unless a limit is configured", () => {
+    const build = (model: string, max?: number) =>
+      createAdapter(
+        config({
+          id: "groq",
+          kind: "openai_compatible",
+          model,
+          base_url: "https://api.groq.com/openai/v1",
+          ...(max === undefined ? {} : { max_output_tokens: max }),
+        }),
+      ).buildCompletion(request).body as Record<string, unknown>;
+    expect(build("openai/gpt-oss-20b")["max_tokens"]).toBe(2048 + 8192);
+    expect(build("qwen/qwen3-32b")["max_tokens"]).toBe(2048 + 8192);
+    expect(build("openai/gpt-oss-20b", 900)["max_tokens"]).toBe(900);
+    expect(build("llama-3.3-70b-versatile")).not.toHaveProperty("max_tokens");
+    expect(build("openrouter/free")).not.toHaveProperty("max_tokens");
+    expect(isReasoningModel("o4-mini")).toBe(true);
+    expect(isReasoningModel("gemma3:4b")).toBe(false);
   });
 
   it("omits response_format when json_mode is none", () => {
