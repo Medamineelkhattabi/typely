@@ -146,6 +146,8 @@ export function CorrectionStage({
   const stage = stageFor(state, localOnly);
   if (stage === undefined) return null;
   const done = state.status === "done" ? state : undefined;
+  // Words listed under "To check" mean the text is not known to be fine.
+  const toCheck = done?.result.suggestions?.length ?? 0;
   return (
     <section className="stage" aria-live="polite">
       <div
@@ -175,7 +177,9 @@ export function CorrectionStage({
           <span className="stage-badge" key={done.result.meta.duration_ms}>
             <Check />
             {stage.finished === "unchanged"
-              ? "Looks good"
+              ? toCheck > 0
+                ? `${toCheck} to check`
+                : "Looks good"
               : stage.fixes > 0
                 ? `${stage.fixes} ${stage.fixes === 1 ? "fix" : "fixes"}`
                 : "Done"}

@@ -49,8 +49,10 @@ export function singleEdit(from: string, to: string): Edit | undefined {
     x.slice(xi).join("") === y.slice(yi).join("");
   const doubled = (x: string[], at: number) => x[at] === x[at - 1] || x[at] === x[at + 1];
   if (a.length === b.length) {
-    // One letter for another can be a different word ("blocklisted"/"blacklisted").
-    if (restEqual(a, i + 1, b, i + 1)) return { kind: "substitution", index: i, typoShaped: false };
+    // One letter for another can be a different word ("blocklisted"/"blacklisted"), unless
+    // the wrong letter repeats its neighbour ("everyhhing", "pleese"): a key typed twice.
+    if (restEqual(a, i + 1, b, i + 1))
+      return { kind: "substitution", index: i, typoShaped: i > 0 && doubled(a, i) };
     if (a[i] === b[i + 1] && a[i + 1] === b[i] && restEqual(a, i + 2, b, i + 2))
       return { kind: "transposition", index: i, typoShaped: true };
     return undefined;

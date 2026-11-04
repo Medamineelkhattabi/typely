@@ -236,6 +236,7 @@ export function Panel() {
       </nav>
 
       <main>
+        {view?.warning !== undefined && <p className="notice">{view.warning}</p>}
         {capture?.error !== undefined && <p className="notice">{capture.error.message}</p>}
         {capture?.error !== undefined && !password && (
           <div className="paste">

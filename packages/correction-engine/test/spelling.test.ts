@@ -75,6 +75,13 @@ describe("spelling policy", () => {
     expect(singleEdit("salut", "slut")).toMatchObject({ typoShaped: false });
     expect(singleEdit("blocklisted", "blacklisted")).toMatchObject({ typoShaped: false });
     expect(singleEdit("isnt", "isn't")).toMatchObject({ kind: "insertion", typoShaped: true });
+    // A key typed twice in place of the right one.
+    expect(singleEdit("everyhhing", "everything")).toMatchObject({
+      kind: "substitution",
+      typoShaped: true,
+    });
+    expect(singleEdit("pleese", "please")).toMatchObject({ typoShaped: true });
+    expect(singleEdit("ffoo", "boo")).toBeUndefined();
     expect(singleEdit("abc", "xyz")).toBeUndefined();
   });
 
@@ -175,6 +182,14 @@ describe("engine integration", () => {
         source: "local",
       }),
     );
+  });
+
+  it("fixes a repeated-key typo and leaves technical words alone", () => {
+    expect(autoFixes("Verify if everyhhing is good, pleese")).toEqual([
+      "everyhhing→everything",
+      "pleese→please",
+    ]);
+    expect(autoFixes("Keep the keyring with the blocklisted domains")).toEqual([]);
   });
 
   it("sends the spell-fixed text to a plain-text model (hybrid pre-pass)", async () => {

@@ -397,12 +397,34 @@ pub struct SettingsStore {
     current: RwLock<AppSettings>,
     /// Set when the file on disk could not be used and defaults were loaded instead.
     load_warning: Option<String>,
+    /// The file exists but could not be read: saving the defaults would erase it.
+    read_failed: bool,
+}
+
+/// Reads the settings file, retrying for a moment: right after an update, the installer or
+/// an antivirus scan can hold it, and Typely once started with no providers because of it.
+fn read_settings(path: &Path) -> std::io::Result<String> {
+    let mut attempt = 0;
+    loop {
+        match fs::read_to_string(path) {
+            Err(e) if attempt < 10 => {
+                // A first run has no file: a few short tries, not the full second.
+                if e.kind() == std::io::ErrorKind::NotFound && attempt >= 2 {
+                    return Err(e);
+                }
+                attempt += 1;
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            result => return result,
+        }
+    }
 }
 
 impl SettingsStore {
     pub fn open(dir: &Path) -> SettingsStore {
         let path = dir.join(SETTINGS_FILE);
-        let (current, load_warning) = match fs::read_to_string(&path) {
+        let mut read_failed = false;
+        let (current, load_warning) = match read_settings(&path) {
             Ok(json) => match AppSettings::from_json(&json) {
                 Ok(settings) => (settings, None),
                 Err(error) => {
@@ -418,12 +440,25 @@ impl SettingsStore {
                     )
                 }
             },
-            Err(_) => (AppSettings::default(), None),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                (AppSettings::default(), None)
+            }
+            Err(error) => {
+                read_failed = true;
+                (
+                    AppSettings::default(),
+                    Some(format!(
+                        "Typely could not read its settings ({error}), so it is using defaults \
+                         for now. Your settings file is untouched: restart Typely to load it."
+                    )),
+                )
+            }
         };
         SettingsStore {
             path,
             current: RwLock::new(current),
             load_warning,
+            read_failed,
         }
     }
 
@@ -439,6 +474,13 @@ impl SettingsStore {
     }
 
     pub fn save(&self, settings: AppSettings) -> Result<AppSettings, String> {
+        if self.read_failed {
+            return Err(
+                "Settings were not loaded at startup; restart Typely before changing them, \
+                        so your saved settings are not replaced."
+                    .to_owned(),
+            );
+        }
         settings.validate()?;
         let json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
         if let Some(dir) = self.path.parent() {
@@ -535,6 +577,19 @@ mod tests {
         let broken = SettingsStore::open(&dir);
         assert!(broken.load_warning().is_some());
         assert!(dir.join("settings.json.invalid").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_unreadable_file_is_never_overwritten() {
+        let dir = std::env::temp_dir().join(format!("typely-unreadable-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        // A folder in place of the file: present but unreadable, like a locked file.
+        fs::create_dir_all(dir.join(SETTINGS_FILE)).unwrap();
+        let store = SettingsStore::open(&dir);
+        assert!(store.load_warning().unwrap().contains("restart Typely"));
+        assert!(store.save(store.get()).is_err());
+        assert!(dir.join(SETTINGS_FILE).is_dir());
         let _ = fs::remove_dir_all(&dir);
     }
 }
